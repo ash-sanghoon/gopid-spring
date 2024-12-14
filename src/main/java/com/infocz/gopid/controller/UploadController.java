@@ -73,7 +73,7 @@ public class UploadController {
 	      .body(new InputStreamResource(in));
 	}
 	
-    /*파일 업로드, 업로드 결과 반환*/
+    /*파일 업로드, 업로드 결과 반환  */
     @PostMapping("/upload")
     public List<HashMap> uploadFile(MultipartFile[] uploadFiles) throws SAXException, TikaException, FileNotFoundException, IOException {
 
