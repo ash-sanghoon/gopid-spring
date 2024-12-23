@@ -20,19 +20,13 @@ public class GopidSpringApplication {
 		
         ProjectService projectService = context.getBean(ProjectService.class);
 
-        // 쿼리 실행
-        List<Map<String, Object>> results = projectService.projectList(new HashMap());
-
-        // 결과 출력
-        for (Map<String, Object> result : results) {
-            System.out.println("Project ID: " + result.get("projectId"));
-            System.out.println("Project Name: " + result.get("projectName"));
-            System.out.println("Client Name: " + result.get("clientName"));
-            System.out.println("Drawing ID: " + result.get("drawingId"));
-            System.out.println("Drawing Name: " + result.get("drawingName"));
-            System.out.println("Standard Name: " + result.get("standardName"));
-            System.out.println("---");
-        }
+        @SuppressWarnings({ "unchecked", "rawtypes" })
+		List<Map<String, Object>> results1 = projectService.projectListForTest1(new HashMap());
+        System.out.println(results1);
+        
+        @SuppressWarnings({ "unchecked", "rawtypes" })
+		List<Map<String, Object>> results2 = projectService.projectListForTest2(new HashMap());
+        System.out.println(results2);
 	}
 
 }

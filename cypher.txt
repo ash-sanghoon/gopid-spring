@@ -1,0 +1,48 @@
+-- 전체 가져오기
+MATCH (f:File), (d:Drawing), (p:Project), (s:Sheet)
+OPTIONAL MATCH (f)-[r1]-()
+OPTIONAL MATCH (d)-[r2]-()
+OPTIONAL MATCH (p)-[r3]-()
+OPTIONAL MATCH (s)-[r4]-()
+RETURN f, d, p, s, r1, r2, r3, r4
+
+MATCH (f:File), (d:Drawing), (p:Project {uuid:"8c2f4b61-03a6-44d8-aaf1-8e2017dcb146"})
+OPTIONAL MATCH (f)-[r1]-()
+OPTIONAL MATCH (d)-[r2]-()
+OPTIONAL MATCH (p)-[r3]-()
+RETURN f, d, p, r1, r2, r3
+-- 프로젝트 생성
+CREATE (f:Project {projectName: 'Booster Compression Train 1', start_date: '2019-01-01'}) RETURN f
+
+-- 드로윙 생성
+CREATE (f:Drawing {DrawingName: 'A', start_date: '2019-01-01', description:"Booster Gas Compressor (1st Stage)"}) RETURN f
+
+-- 드로윙에서 프로젝트로 연관관계
+MATCH (a:Project {projectName: 'Booster Compression Train 1'}), (b:Drawing {DrawingName: 'A'})
+CREATE (b)-[:HAS_PROJECT]->(a)
+RETURN a, b;
+
+-- 드로윙 파일 생성
+MERGE (f:File {uuid: 'uuid1', filename: 'sample.pdf', mediatype: 'application/pdf'}) RETURN f
+
+-- 파일에서 드로윙으로 연관관계
+MATCH (a:File {uuid: 'uuid1'}), (b:Drawing {DrawingName: 'A'}) CREATE (b)-[:HAS_FILE]->(a) RETURN a, b;
+
+--  시트 생성
+CREATE (f:Sheet {SheetName: 'sheet A'}) RETURN f
+
+-- 시트에서 드로윙으로 연관관계
+MATCH (a:Sheet {SheetName: 'sheet A'}), (b:Drawing {DrawingName: 'A'}) CREATE (b)-[:HAS_DRAWING]->(a) RETURN a, b;
+
+-- 시트 파일생성
+CREATE (f:File {uuid: 'uuid2', filename: 'gened-20241215', mediatype: 'image/png'}) RETURN f
+
+-- 파일에서 시트로 연관관계
+MATCH (a:File {uuid: 'uuid2'}), (b:Sheet {SheetName: 'sheet A'}) CREATE (b)-[:HAS_FILE]->(a) RETURN a, b;
+
+
+
+MERGE (f:Project {projectName: $projectName, uuid: $uuid}) RETURN f
+
+$projectName
+

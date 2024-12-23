@@ -1,0 +1,12 @@
+모델 run의 uuid와 다른 상태 변경
+MATCH (r:run {id:"ba6f4d67-1dc6-440f-8685-3ae57cf810d2"}) SET r.uuid="ba6f4d67-1dc6-440f-8685-3ae57cf810d2", r.modelName="YOLO 8" , r.rundate= "2024-12-20 11" RETURN r
+
+
+
+run과 drawing 연결
+
+
+MATCH (n:Drawing {uuid:"a4135c7b-b167-4fba-ab01-4c65a2b256cb"})  
+MATCH (r:run {uuid:"ba6f4d67-1dc6-440f-8685-3ae57cf810d2"}) 
+MERGE (n)  - [:HAS_RUN] -> (r)
+RETURN n, r

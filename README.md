@@ -10,14 +10,18 @@ graph oriented p&amp;id
 
 
 # API 목록
-파일요청 : /filestorage/IDXXXXXXX
-  - 응답 : mimeType은 Tika로 즉시 생성, file 내용
+파일보기요청 : /apis/files/view/IDXXXXXXX
+  - 응답 : file 내용, response-header : mimeType(Tika로 즉시 생성), 
 
-파일저장요청 : /filestorage/save
+임시업로드파일생성요청 : /apis/files/tempupload
   - 조건 : POST Multipart
   - 응답 : {fileIdd:UUID}
 
-파일다운로드요청 : /filestorage/download/IDXXXXXX
+파일생성요청 : /apis/files/upload
+  - 조건 : POST Multipart
+  - 응답 : {fileIdd:UUID}
+
+파일다운로드요청 : /apis/files/download/IDXXXXXX
   - 응답 : file 내용, response-header : content-disposition : attachment;filename
 
 프로젝트목록요청 : /project/list

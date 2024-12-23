@@ -9,7 +9,6 @@ import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
-import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.SessionConfig;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +28,9 @@ public class CypherExecutor implements AutoCloseable{
 
     @Value("${neo4j.password}")
     private String password;
+
+    @Value("${neo4j.database}")
+    private String database;
 
     private Driver driver;
 
@@ -58,6 +60,10 @@ public class CypherExecutor implements AutoCloseable{
         }
         return driver;
     }
+    
+    public Session getSession() {
+    	return getDriver().session(SessionConfig.builder().withDatabase(getDatabase()).build());
+    }
 
     // Clean up method - called when the Spring context is closed
     @PreDestroy
@@ -68,25 +74,26 @@ public class CypherExecutor implements AutoCloseable{
         }
     }
 
-    @SuppressWarnings("unchecked")
-	public <T> List<T> readCyphers(String cypher, Map<String, Object> map, String database) {
-//		try (var session = driver.session(SessionConfig.builder().withDatabase("samsung-ena").build())) {
-//      public <T> List<T> readCyphers(String cypher, Map map, Function<org.neo4j.driver.Record, T> mapper) {
-//        try (Session session = driver.session()) {
+	@SuppressWarnings("unchecked")
+	public List<Map<String, Object>> execCyphers(String cypher, Map<String, Object> map, @SuppressWarnings("rawtypes") Function mapper) {
         try (Session session = driver.session(SessionConfig.builder().withDatabase(database).build())) {
-            Result result = session.run(cypher, map);
-            return (List<T>) result.list(record -> record.asMap());
+            return session.run(cypher, map).list(mapper);
         }
     }
-//    
-//    public <T> List<T> readCyphers1(String cypher, Function<Record, T> mapper) {
-//        try (Session session = driver.session()) {
-//            return (List<T>) session.readTransaction(tx -> tx.run(cypher).list(mapper));
-//        }
-//    }
-	@Override
+
+    @Override
 	public void close() throws Exception {
 		driver.close();
+	}
+
+	public String getDatabase() {
+		// TODO Auto-generated method stub
+		return database;
+	}
+
+	public String getRunDatabase() {
+		// TODO Auto-generated method stub
+		return "samsung-ena-code-test";
 	}
 }
 
