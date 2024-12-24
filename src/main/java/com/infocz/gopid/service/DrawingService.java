@@ -296,7 +296,7 @@ public class DrawingService {
 	            String edge_name = (String) edge.get("name");
 	            String source = (String) edge.get("source");
 	            String target = (String) edge.get("target");
-	            String line_no = (String) edge.get("line_no");
+	            String line_no = (String) properties.get("line_no");
 	            
 	        	Result result = tx.run("""
 					MATCH (r:run {uuid:$uuid})-[:CONTAINS]->(s:Bbox {id: $sourceId}) - [p:CONNECTS_TO]->(t:Bbox {id: $targetId}) <- [:CONTAINS] - (r)
