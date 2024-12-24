@@ -239,7 +239,7 @@ public class ProjectService {
 
                 for (int page = 0; page < pageCount; page++) {
                     // PDF 페이지를 렌더링하여 BufferedImage로 변환
-                    BufferedImage image = pdfRenderer.renderImageWithDPI(page, 300, ImageType.RGB);
+                    BufferedImage image = pdfRenderer.renderImageWithDPI(page, 600, ImageType.RGB);
 
                     String imageUuid = UUID.randomUUID().toString();
                     // PNG 파일 이름 지정
