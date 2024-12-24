@@ -1,0 +1,140 @@
+// Match Bbox nodes and create BELONG_TO relationships with Symbol nodes based on symbol_type
+MATCH (b:Bbox)
+WHERE b.symbol_type IS NOT NULL
+WITH b
+CALL {
+    WITH b
+    MATCH (s:Symbol)
+    WHERE 
+    // Unknown pattern matching
+    (b.symbol_type CONTAINS 'unknown' AND s.name = 'UNKNOWN') OR
+    
+    // Valves
+    (b.symbol_type = 'globe_valve' AND s.name = 'GLOBE VALVE') OR
+    (b.symbol_type = 'glove_valve' AND s.name = 'GLOBE VALVE') OR
+    (b.symbol_type = 'ball_valve' AND s.name = 'BALL VALVE') OR
+    (b.symbol_type = 'butterfly_value' AND s.name = 'BUTTERFLY VALVE') OR
+    (b.symbol_type = 'gate_valve' AND s.name = 'GATE VALVE') OR
+    (b.symbol_type = 'gate_needle_valve' AND s.name = 'NEEDLE VALVE') OR
+    (b.symbol_type = 'three_way_valve' AND s.name = 'THREE-WAY VALVE') OR
+    (b.symbol_type = 'four_way_valve' AND s.name = 'FOUR-WAY VALVE') OR
+    (b.symbol_type = 'check_valve' AND s.name = 'CHECK VALVE') OR
+    (b.symbol_type = 'safety_valve' AND s.name = 'SAFETY VALVE') OR
+    (b.symbol_type = 'solenoid_valve' AND s.name = 'SOLENOID VALVE') OR
+    (b.symbol_type = 'damper_valve' AND s.name = 'DAMPER VALVE') OR
+    (b.symbol_type = 'piston_valve' AND s.name = 'PISTON VALVE') OR
+    (b.symbol_type = 'breather_valve' AND s.name = 'VACUUM RELIEF VALVE') OR
+    (b.symbol_type = 'hand_operated_control_valve' AND s.name = 'HAND OPERATED CONTROL VALVE') OR
+    (b.symbol_type = 'valve' AND s.name = 'VALVE (OR UNSPECIFIED)') OR
+    (b.symbol_type = 'valve_closed' AND s.name = 'VALVE NORMALLY CLOSED') OR
+    
+    // Equipment
+    (b.symbol_type = 'equipment_centrifugal_pump' AND s.name = 'CENTRIFUGAL PUMP') OR
+    (b.symbol_type = 'equipment_gear_pump' AND s.name = 'GEAR PUMP') OR
+    (b.symbol_type = 'equipment_electric_motor' AND s.name = 'ELECTRIC MOTOR') OR
+    (b.symbol_type = 'equipment_heat_exchanger' AND s.name = 'HEAT EXCHANGER') OR
+    (b.symbol_type = 'equipment_drum' AND s.name = 'DRUM') OR
+    (b.symbol_type = 'centrifugal_pump' AND s.name = 'CENTRIFUGAL PUMP') OR
+    
+    // Instruments and Controls
+    (b.symbol_type = 'instrument' AND s.name = 'INSTRUMENT LOCATED IN FIELD') OR
+    (b.symbol_type = 'field_mounted' AND s.name = 'FIELD MOUNTED') OR
+    (b.symbol_type = 'field_mounted_transmitter_instrument' AND s.name = 'FIELD MOUNTED') OR
+    (b.symbol_type = 'board_mounted_instrument' AND s.name = 'CONTROL ROOM MOUNTED (DCS OR PLC)') OR
+    (b.symbol_type = 'dsc_board_instrument' AND s.name = 'CONTROL ROOM MOUNTED (DCS OR PLC)') OR
+    (b.symbol_type = 'local_panel_mounted_instrument' AND s.name = 'MOUNTED ON LOCAL PANEL') OR
+    (b.symbol_type = 'light_instrument' AND s.name = 'LOCAL LAMP') OR
+    (b.symbol_type = 'logger_point_instrument' AND s.name = 'DATA LOGGER POINT - PRESSURE') OR
+    (b.symbol_type = 'limit_switch_close' AND s.name = 'LEVEL SWITCH LOW (LSL)') OR
+    (b.symbol_type = 'controller' AND s.name = 'FLOW CONTROLLER') OR
+    (b.symbol_type = 'converter' AND s.name = 'CURRENT TRANSFORMER') OR
+    (b.symbol_type = 'complex_control' AND s.name = 'SOFTWARE OR COMPUTING SEQUENCES DISPLAYED ON THE DCS') OR
+    (b.symbol_type = 'interlock_instrument' AND s.name = 'INTERLOCKS IMPLEMENTED IN THE DCS') OR
+    (b.symbol_type = 'sequence_instrument' AND s.name = 'SEQUENCE BOX (DCS)') OR
+    
+    // Flow and Measurement Devices
+    (b.symbol_type = 'rotameter' AND s.name = 'ROTAMETER') OR
+    (b.symbol_type = 'venturi_tube' AND s.name = 'VENTURI TUBE') OR
+    (b.symbol_type = 'variable_area' AND s.name = 'VARIABLE AREA FLOWMETER') OR
+    (b.symbol_type = 'coriolis' AND s.name = 'MASS FLOWMETER') OR
+    
+    // Actuators and Operators
+    (b.symbol_type = 'actuator' AND s.name = 'PNEUMATIC SPRING DIAPHRAGM ACTUATOR') OR
+    (b.symbol_type = 'motor_operated' AND s.name = 'MOTOR OPERATED VALVE') OR
+    (b.symbol_type = 'piston_operated' AND s.name = 'PISTON OPERATED VALVE') OR
+    (b.symbol_type = 'solenoid_operated' AND s.name = 'SOLENOID OPERATED') OR
+    (b.symbol_type = 'handwheel' AND s.name = 'HAND OPERATED CONTROL VALVE') OR
+    
+    // Connection and Pipe Related
+    (b.symbol_type = 'reducer' AND s.name = 'REDUCER') OR
+    (b.symbol_type = 'line_size_reduction' AND s.name = 'REDUCER') OR
+    (b.symbol_type = 'jacketed_pipe' AND s.name = 'TRACED LINE') OR
+    (b.symbol_type = 'hose_connection' AND s.name = 'HOSE CONNECTION') OR
+    (b.symbol_type = 'connection' AND s.name = 'HOSE CONNECTION') OR
+    (b.symbol_type = 'flexible_connection' AND s.name = 'FLEXIBLE TUBE') OR
+    (b.symbol_type = 'flange' AND s.name = 'FLANGE') OR
+    (b.symbol_type = 'cap_screwed' AND s.name = 'CAP (SCREWED)') OR
+    (b.symbol_type = 'welded_cap' AND s.name = 'CAP (WELDED)') OR
+    
+    // Plates and Blinds
+    (b.symbol_type = 'plate_closed' AND s.name = 'SPECTACLE BLIND CLOSED') OR
+    (b.symbol_type = 'plate_open' AND s.name = 'SPECTACLE BLIND OPEN') OR
+    (b.symbol_type = 'spectacle_blind' AND s.name = 'SPECTACLE BLIND PLATE') OR
+    
+    // Filters and Strainers
+    (b.symbol_type = 'sinterd_metal_filter' AND s.name = 'SYNTHETIC METAL FILTER') OR
+    (b.symbol_type = 'temporary_strainer' AND s.name = 'TEMPORARY STRAINER') OR
+    (b.symbol_type = 'strainer_y_type_valve' AND s.name = 'TEMPORARY STRAINER') OR
+    
+    // Misc
+    (b.symbol_type = 'sliencer' AND s.name = 'SILENCER') OR
+    (b.symbol_type = 'insulation' AND s.name = 'INSULATION SPECIFICATIONS') OR
+    (b.symbol_type = 'sampling_point' AND s.name = 'SAMPLE CONNECTION') OR
+    (b.symbol_type = 'open_drain' AND s.name = 'DRAIN') OR
+    (b.symbol_type = 'sewer_funnul' AND s.name = 'OILY WATER SEWER') OR
+    (b.symbol_type = 'diaphragm_seal' AND s.name = 'DIAPHRAGM')
+    
+    RETURN s
+}
+MERGE (b)-[:BELONG_TO]->(s)
+
+
+
+
+
+arrow (화살표)    
+fromTo (방향표시)
+strong_connection (강한 연결)   -> X
+
+
+밸브 관련:
+
+
+block_valve                    
+ball_valve_closed              
+globe_valve_closed             
+split_valve                    -> 생성필요
+
+
+Equipment 관련:
+
+
+double_pipe_equipment -> X
+postive_displacement -> X
+
+
+
+detail                 -> Unknown
+plug                   -> X
+utilities              -> 생성필요
+system                 -> X
+hc                     -> X
+scarecrow              -> 생성필요
+slotted_distributor    -> X
+package_battery_limit  -> X
+mist_eliminator        -> X
+positioner             -> Unknown
+special_piece_instrument  -> X
+ins_pipe                  -> X
+
+

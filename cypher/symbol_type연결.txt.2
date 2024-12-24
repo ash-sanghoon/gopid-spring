@@ -1,0 +1,135 @@
+// 남은 Bbox 확인
+MATCH (b:Bbox)
+WHERE NOT EXISTS {
+    MATCH (b)-[:BELONG_TO]->(:Symbol)
+}
+RETURN b.symbol_type AS symbol_type, COUNT(*) AS count
+ORDER BY count DESC
+;
+
+// Match Bbox nodes and create BELONG_TO relationships with Symbol nodes based on symbol_type
+MATCH (b:Bbox)
+WHERE b.symbol_type IS NOT NULL
+WITH b
+CALL {
+    WITH b
+    MATCH (s:Symbol)
+    WHERE 
+    // Unknown pattern matching - including unmappable items
+    (
+        (b.symbol_type CONTAINS 'unknown' OR 
+         b.symbol_type IN ['close_side', 
+                          'slotted_distributor', 
+                          'mist_eliminator', 'special_piece_instrument',
+                          'hc', 'ins_pipe']) 
+        AND s.name = 'unknown'
+    ) OR
+    (b.symbol_type = 'fromTo' AND s.name = 'from_to') OR
+    (b.symbol_type = 'split_valve' AND s.name = 'split_valve') OR
+    (b.symbol_type = 'globe valve1' AND s.name = 'globe_valve') OR
+    
+    (b.symbol_type = 'package_battery_limit' AND s.name = 'package_battery_limit') OR
+    (b.symbol_type = 'system' AND s.name = 'system') OR
+    (b.symbol_type = 'strong_connection' AND s.name = 'strong_connection') OR
+
+    (b.symbol_type = 'solenoid_operated_valves' AND s.name = 'solenoid_operated_valves') OR
+    (b.symbol_type = 'solenoid valve' AND s.name = 'solenoid_valve') OR
+    (b.symbol_type = 'arrow' AND s.name = 'arrow') OR
+    (b.symbol_type = 'detail' AND s.name = 'detail') OR
+    (b.symbol_type = 'scarecrow' AND s.name = 'scarecrow') OR
+    (b.symbol_type = 'utilities' AND s.name = 'utilities') OR
+    
+    // Valves
+    (b.symbol_type = 'plug' AND s.name = 'plug_valve') OR
+    (b.symbol_type = 'globe_valve' AND s.name = 'globe_valve') OR
+    (b.symbol_type = 'glove_valve' AND s.name = 'globe_valve') OR
+    (b.symbol_type = 'ball_valve' AND s.name = 'ball_valve') OR
+    (b.symbol_type = 'butterfly_value' AND s.name = 'butterfly_valve') OR
+    (b.symbol_type = 'gate_valve' AND s.name = 'gate_valve') OR
+    (b.symbol_type = 'gate_needle_valve' AND s.name = 'needle_valve') OR
+    (b.symbol_type = 'three_way_valve' AND s.name = 'three_way_valve') OR
+    (b.symbol_type = 'four_way_valve' AND s.name = 'four_way_valve') OR
+    (b.symbol_type = 'check_valve' AND s.name = 'check_valve') OR
+    (b.symbol_type = 'safety_valve' AND s.name = 'safety_valve') OR
+    (b.symbol_type = 'solenoid_valve' AND s.name = 'solenoid_valve') OR
+    (b.symbol_type = 'damper_valve' AND s.name = 'damper_valve') OR
+    (b.symbol_type = 'piston_valve' AND s.name = 'piston_valve') OR
+    (b.symbol_type = 'breather_valve' AND s.name = 'vacuum_relief_valve') OR
+    (b.symbol_type = 'hand_operated_control_valve' AND s.name = 'hand_operated_control_valve') OR
+    (b.symbol_type = 'valve' AND s.name = 'valve_or_unspecified') OR
+    (b.symbol_type = 'valve_closed' AND s.name = 'valve_normally_closed') OR
+    (b.symbol_type = 'block_valve' AND s.name = 'gate_valve_or_unspecified') OR
+    (b.symbol_type IN ['ball_valve_closed', 'globe_valve_closed', 'glove_valve_closed'] AND s.name = 'valve_normally_closed') OR
+    
+    // Equipment
+    (b.symbol_type = 'equipment_centrifugal_pump' AND s.name = 'centrifugal_pump') OR
+    (b.symbol_type = 'equipment_gear_pump' AND s.name = 'gear_pump') OR
+    (b.symbol_type = 'equipment_electric_motor' AND s.name = 'electric_motor') OR
+    (b.symbol_type = 'equipment_heat_exchanger' AND s.name = 'heat_exchanger') OR
+    (b.symbol_type = 'equipment_drum' AND s.name = 'drum') OR
+    (b.symbol_type = 'centrifugal_pump' AND s.name = 'centrifugal_pump') OR
+    (b.symbol_type = 'double_pipe_equipment' AND s.name = 'double_pipe_heat_exchanger') OR
+    
+    // Instruments and Controls
+    (b.symbol_type = 'instrument' AND s.name = 'instrument_located_in_field') OR
+    (b.symbol_type = 'field_mounted' AND s.name = 'field_mounted') OR
+    (b.symbol_type = 'field_mounted_transmitter_instrument' AND s.name = 'field_mounted') OR
+    (b.symbol_type = 'board_mounted_instrument' AND s.name = 'control_room_mounted_dcs_or_plc') OR
+    (b.symbol_type = 'dsc_board_instrument' AND s.name = 'control_room_mounted_dcs_or_plc') OR
+    (b.symbol_type = 'local_panel_mounted_instrument' AND s.name = 'mounted_on_local_panel') OR
+    (b.symbol_type = 'light_instrument' AND s.name = 'local_lamp') OR
+    (b.symbol_type = 'logger_point_instrument' AND s.name = 'data_logger_point___pressure') OR
+    (b.symbol_type = 'limit_switch_close' AND s.name = 'level_switch_low_lsl') OR
+    (b.symbol_type = 'controller' AND s.name = 'flow_controller') OR
+    (b.symbol_type = 'converter' AND s.name = 'current_transformer') OR
+    (b.symbol_type = 'complex_control' AND s.name = 'software_or_computing_sequences_displayed_on_the_dcs') OR
+    (b.symbol_type = 'interlock_instrument' AND s.name = 'interlocks_implemented_in_the_dcs') OR
+    (b.symbol_type = 'sequence_instrument' AND s.name = 'sequence_box_dcs') OR
+    
+    // Flow and Measurement Devices
+    (b.symbol_type = 'rotameter' AND s.name = 'rotameter') OR
+    (b.symbol_type = 'venturi_tube' AND s.name = 'venturi_tube') OR
+    (b.symbol_type = 'variable_area' AND s.name = 'variable_area_flowmeter') OR
+    (b.symbol_type = 'coriolis' AND s.name = 'mass_flowmeter') OR
+    
+    // Actuators and Operators
+    (b.symbol_type = 'actuator' AND s.name = 'actuator') OR
+    (b.symbol_type = 'pneumatic_spring_diaphragm_actuator' AND s.name = 'pneumatic_spring_diaphragm_actuator') OR
+    (b.symbol_type = 'motor_operated' AND s.name = 'motor_operated_valve') OR
+    (b.symbol_type = 'piston_operated' AND s.name = 'piston_operated_valve') OR
+    (b.symbol_type = 'solenoid_operated' AND s.name = 'solenoid_valve') OR
+    (b.symbol_type = 'handwheel' AND s.name = 'hand_operated_control_valve') OR
+    
+    // Connection and Pipe Related
+    (b.symbol_type = 'reducer' AND s.name = 'reducer') OR
+    (b.symbol_type = 'line_size_reduction' AND s.name = 'reducer') OR
+    (b.symbol_type = 'jacketed_pipe' AND s.name = 'traced_line') OR
+    (b.symbol_type = 'hose_connection' AND s.name = 'hose_connection') OR
+    (b.symbol_type = 'connection' AND s.name = 'hose_connection') OR
+    (b.symbol_type = 'flexible_connection' AND s.name = 'flexible_tube') OR
+    (b.symbol_type = 'flange' AND s.name = 'flange') OR
+    (b.symbol_type = 'cap_screwed' AND s.name = 'cap_screwed') OR
+    (b.symbol_type = 'welded_cap' AND s.name = 'cap_welded') OR
+    
+    // Plates and Blinds
+    (b.symbol_type = 'plate_closed' AND s.name = 'spectacle_blind_closed') OR
+    (b.symbol_type = 'plate_open' AND s.name = 'spectacle_blind_open') OR
+    (b.symbol_type = 'spectacle_blind' AND s.name = 'spectacle_blind_plate') OR
+    
+    // Filters and Strainers
+    (b.symbol_type = 'sinterd_metal_filter' AND s.name = 'synthetic_metal_filter') OR
+    (b.symbol_type = 'temporary_strainer' AND s.name = 'temporary_strainer') OR
+    (b.symbol_type = 'strainer_y_type_valve' AND s.name = 'temporary_strainer') OR
+    
+    // Misc
+    (b.symbol_type = 'sliencer' AND s.name = 'silencer') OR
+    (b.symbol_type = 'insulation' AND s.name = 'insulation_specifications') OR
+    (b.symbol_type = 'sampling_point' AND s.name = 'sample_connection') OR
+    (b.symbol_type = 'open_drain' AND s.name = 'drain') OR
+    (b.symbol_type = 'sewer_funnul' AND s.name = 'oily_water_sewer') OR
+    (b.symbol_type = 'diaphragm_seal' AND s.name = 'diaphragm') OR
+    (b.symbol_type = 'positioner' AND s.name = 'ball_type_control_valve_with_positioner')
+    
+    RETURN s
+}
+MERGE (b)-[:BELONG_TO]->(s)
