@@ -29,17 +29,15 @@ public class DrawingController {
     }
 
     @GetMapping("/run_detail/{drawingId:.+}/{runId:.+}")
-    public Map getRunDetail(@PathVariable String drawingId, @PathVariable String runId) {
+    public Map<String, Object> getRunDetail(@PathVariable String drawingId, @PathVariable String runId) {
     	System.out.println("getRunDetail");
-    	Map <String, Object> graphInfo = drawingService.getDrawingRunGraph(drawingId, runId);
-        return graphInfo;
+    	return drawingService.getDrawingRunGraph(drawingId, runId);
     }
     
     @PostMapping("/run_update")
-    public Map <String, Object> saveGraph(@RequestBody HashMap<String, Object> map) {
+    public Map<String, Object> saveGraph(@RequestBody HashMap<String, Object> map) {
     	System.out.println("saveGraph");
-    	List <Map <String, Object>> graphInfo = drawingService.saveGraph(map);
+    	drawingService.saveGraph(map);
         return map;
     }
-
 }

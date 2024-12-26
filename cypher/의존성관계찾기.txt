@@ -1,0 +1,2 @@
+
+MATCH (p:Project {uuid:""}) - [:HAS_DRAWING] -> (d:Drawing) - [:HAS_RUN] -> (r:Run {isFinal:"Y"})

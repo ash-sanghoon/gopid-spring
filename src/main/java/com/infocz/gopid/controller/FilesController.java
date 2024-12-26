@@ -7,8 +7,6 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,7 +21,6 @@ import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -97,7 +94,6 @@ public class FilesController {
         for (MultipartFile uploadFile: uploadFiles) {
 
             String orginalName = uploadFile.getOriginalFilename();
-            assert orginalName != null;
             String fileName = orginalName.substring(orginalName.lastIndexOf("\\") + 1);
             String uuid = UUID.randomUUID().toString();
             String saveName = uploadPath + File.separator + UUID.randomUUID().toString();
@@ -125,44 +121,29 @@ public class FilesController {
                     tx.commit();
             	}
             }
-                    
         }
         return list;
     }
-    
-	public static void main(String[] args) throws IOException {
-		//Path savePath = Paths.get("D:\\test\\sample.pdf");
-		Path savePath = Paths.get("D:\\test\\t1_edited-engine-O0-25-63.12-63.12.jpg");
-		String filename = "sample1.pdf";
-		Resource resource = new FileSystemResource("D:\\test\\"+filename);
-		
-		Path filePath = Paths.get("D:\\test\\").resolve(filename);
-		Resource file = new UrlResource(filePath.toUri());
-		MediaType mediaType = MediaType.valueOf(detectDocType(file.getInputStream()).toString());
-
-		//org.apache.tika.mime.MediaType mediaType = detectDocType(Files.newInputStream(savePath));
-		System.out.println(mediaType);
-	}
-
-    /*날짜 폴더 생성*/
-    private String makeFolder() {
-
-        String str = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
-
-        String folderPath = str.replace("/", File.separator);
-
-        // make folder --------
-        File uploadPathFolder = new File(uploadPath, folderPath);
-
-        if(!uploadPathFolder.exists()) {
-            boolean mkdirs = uploadPathFolder.mkdirs();
-            log.info("-------------------makeFolder------------------");
-            log.info("uploadPathFolder.exists(): "+uploadPathFolder.exists());
-            log.info("mkdirs: "+mkdirs);
-        }
-
-        return folderPath;
-
-    }
+//    
+//    /*날짜 폴더 생성*/
+//    private String makeFolder() {
+//
+//        String str = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+//
+//        String folderPath = str.replace("/", File.separator);
+//
+//        // make folder --------
+//        File uploadPathFolder = new File(uploadPath, folderPath);
+//
+//        if(!uploadPathFolder.exists()) {
+//            boolean mkdirs = uploadPathFolder.mkdirs();
+//            log.info("-------------------makeFolder------------------");
+//            log.info("uploadPathFolder.exists(): "+uploadPathFolder.exists());
+//            log.info("mkdirs: "+mkdirs);
+//        }
+//
+//        return folderPath;
+//
+//    }
 
 }

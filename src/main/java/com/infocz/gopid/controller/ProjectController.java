@@ -1,7 +1,6 @@
 package com.infocz.gopid.controller;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,30 +23,27 @@ public class ProjectController {
 	private ProjectService projectService;
 	
     @PostMapping("/list")
-    public List <Map <String, Object>> list(@RequestBody HashMap<String, Object> map) {
+    public List<Map<String, Object>> list(@RequestBody HashMap<String, Object> map) {
     	System.out.println("list");
     	List <Map <String, Object>> projectInfo = projectService.projectList(map);
         return projectInfo;
     }
     
     @GetMapping("/detail/{drawingId:.+}")
-    public Map detail(@PathVariable String drawingId) {
+    public Map<String, Object> detail(@PathVariable String drawingId) {
     	System.out.println("list");
-    	Map <String, Object> projectInfo = projectService.projectDetail(drawingId);
-        return projectInfo;
+    	return projectService.projectDetail(drawingId);
     }
 	
     @PostMapping("/create")
-    public Map <String, Object> create(@RequestBody HashMap<String, Object> map) {
+    public Map<String, Object> create(@RequestBody HashMap<String, Object> map) {
     	System.out.println("create");
-    	Map <String, Object> projectInfo = projectService.projectCreate(map);
-        return projectInfo;
+    	return projectService.projectCreate(map);
     }
 
     @PostMapping("/save")
-    public Map <String, Object> save(@RequestBody HashMap<String, Object> map) throws IOException {
+    public Map<String, Object> save(@RequestBody HashMap<String, Object> map) throws IOException {
     	System.out.println("save");
-    	Map <String, Object> projectInfo = projectService.projectSave(map);
-        return projectInfo;
+    	return projectService.projectSave(map);
     }
 }
