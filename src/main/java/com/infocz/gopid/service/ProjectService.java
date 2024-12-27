@@ -9,8 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
@@ -30,8 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.infocz.util.neo4j.CypherExecutor;
-import com.infocz.util.ocr.StandardTitleBlockExtractor;
-import com.infocz.util.ocr.StandardTitleBlockExtractor.TitleBlockInfo;
+import com.infocz.util.ocr.TypeTitleExtractor;
 
 @Service
 public class ProjectService {
@@ -39,44 +36,37 @@ public class ProjectService {
     @Value("${com.infocz.upload.temp.path}") // application 의 properties 의 변수
     private String uploadPath;
 
+    @Value("${com.infocz.parser.dpi}") // application 의 properties 의 변수
+    private String dpi;
+    
+    @Autowired
+    private TypeTitleExtractor titleExtractor;
+    
 	@Autowired
 	private CypherExecutor cypherExecutor;
 	
 	@Autowired
 	private DrawingService drawingService;
 
+	@Transactional
 	public List<Map<String, Object>> projectList(HashMap<String, Object> reqMap) {
+
+    	Session session = cypherExecutor.getSession();
 	    // timestamp()를 milliseconds로 받아서 datetime으로 변환 후 포맷팅
-	    String query = """
-	    		MATCH (p:Project) WHERE p.name CONTAINS $projectName 
-	            RETURN p.uuid as uuid, p.name as name, p.company as company,
-	    		       p.country as country, p.standard as standard,
+
+	    Result result = session.run("""
+	    		MATCH (p:Project) WHERE COALESCE(p.project_name, '') CONTAINS $projectName 
+	            RETURN p.uuid as uuid, 
+	    		       p.project_name as project_name, 
+	    		       p.company as company,
+	    		       p.country as country, 
+	    		       p.standard as standard,
+	    		       p.line_no_pattern, 
+	    		       p.drawing_no_pattern,
+	    		       50 AS progress,
 	                   apoc.date.format(p.last_update_date, 'ms', 'yyyy-MM-dd HH:mm:ss', 'Asia/Seoul') as last_update_date
-	    		""";
-
-	    Function<?, ?> mapper = (record -> {
-	        Record r = (Record) record;
-	        Map<String, Object> map = new HashMap<>();
-	        map.put("uuid", r.get("uuid").asString());
-	        map.put("name", r.get("name").asString());
-	        map.put("company", r.get("company").asString());
-	        map.put("country", r.get("country").asString());
-	        map.put("standard", r.get("standard").asString());
-	        map.put("last_update_date", r.get("last_update_date").asString());
-	        return map;
-	    });
-	    
-	    List<Map<String, Object>> list = cypherExecutor.execCyphers(query, reqMap, mapper);
-
-	    List<Map<String, Object>> updatedList = list.stream()
-	        .map(map -> {
-	            Map<String, Object> modifiableMap = new HashMap<>(map);
-	            modifiableMap.put("progress", 50);
-	            return modifiableMap;
-	        })
-	        .collect(Collectors.toList());
-	    
-	    return updatedList;
+	    		""", reqMap);
+		return result.list(Record::asMap);
 	}
     
     // 최초 생성
@@ -97,11 +87,13 @@ public class ProjectService {
         Session session = cypherExecutor.getSession();
 		session.run( """ 
 				MATCH (p:Project {uuid: $uuid})  
-				SET 	p.name = $projectName, 
+				SET 	p.project_name = $project_name, 
 						p.country = $country,   
 						p.company = $company, 
+						p.drawing_no_pattern = $drawing_no_pattern, 
+						p.line_no_pattern = $line_no_pattern, 
 						p.standard = $standard,
-    				    p.last_update_date = datetime().format(\"yyyy-MM-dd HH:mm:ss\") 
+    				    p.last_update_date = timestamp()
 						RETURN p
 				""", projectMap);
 						
@@ -112,7 +104,6 @@ public class ProjectService {
 				SET   d.drawing_no = $drawing_no,
 				      d.sheet_no = $sheet_no
 	        	""" , drawing);
-
         }
     }
 
@@ -148,12 +139,12 @@ public class ProjectService {
 
     	        for (int page = 0; page < pageCount; page++) {
     	            // PDF 페이지를 렌더링하여 BufferedImage로 변환
-    	            BufferedImage image = pdfRenderer.renderImageWithDPI(page, 300, ImageType.RGB);
-    	            saveDrawingInfo((String)projectMap.get("uuid"), image, page, fileMap);
+    	            BufferedImage image = pdfRenderer.renderImageWithDPI(page, Integer.parseInt(dpi), ImageType.RGB);
+    	            saveDrawingInfo(projectMap, image, page, fileMap);
     	        }
     	    }else if(mediaType.startsWith("image/")) {
     	    	BufferedImage image = ImageIO.read(file.getFile());
-    	    	saveDrawingInfo((String)projectMap.get("uuid"), image, 1, fileMap);
+    	    	saveDrawingInfo(projectMap, image, 1, fileMap);
     	    }else {
     	    	throw new RuntimeException("cannot proc mediatype " + mediaType);
     	    }
@@ -161,8 +152,9 @@ public class ProjectService {
         return projectMap;
 	}
 	
-	private void saveDrawingInfo(String projectUuid, BufferedImage image, int page, Map<String, Object> fileMap) throws IOException {
-
+	private void saveDrawingInfo(HashMap<String, Object> projectMap, BufferedImage image, int page, Map<String, Object> fileMap) throws IOException {
+		String projectUuid = (String)projectMap.get("uuid");
+		String drawing_no_pattern  = (String)projectMap.get("drawing_no_pattern");
     	Session session = cypherExecutor.getSession();
         HashMap<String, Object> drawingMap = new HashMap<String, Object>();
         drawingMap.put("projectUuid", projectUuid);
@@ -189,16 +181,11 @@ public class ProjectService {
         
         System.out.println("Page " + (page + 1) + " saved as " + drawingFilePath);
         
-		StandardTitleBlockExtractor extractor = new StandardTitleBlockExtractor(drawingFilePath);
-//		TitleBlockInfo info = extractor.extract(FilenameUtils.removeExtension((String)fileMap.get("fileName")), 
-//				FilenameUtils.removeExtension(String.format("%03d", page+1)));
-
-		TitleBlockInfo info = extractor.extract("Not Found", 
-				"000");
+		List<String> infos = titleExtractor.extract(image, drawing_no_pattern, List.of("Not Found", "000"));
 
         drawingMap.put("uuid", drawingUuid);
-        drawingMap.put("drawing_no", info.drawingNumber);
-        drawingMap.put("sheet_no", info.sheetNumber);
+        drawingMap.put("drawing_no", infos.get(0));
+        drawingMap.put("sheet_no", infos.get(1));
         drawingMap.put("thumnbnail_uuid", thumnbnailUuid);
         drawingMap.put("width", image.getWidth());
         drawingMap.put("height", image.getHeight());
@@ -232,22 +219,28 @@ public class ProjectService {
 	    projectDetail.put("company", "");
 	    projectDetail.put("country", "");
 	    projectDetail.put("standard", "");
-	    projectDetail.put("projectName", "");
+	    projectDetail.put("project_name", "");
+	    projectDetail.put("line_no_pattern", "");
+	    projectDetail.put("drawing_no_pattern", "");
 	    projectDetail.put("files", new ArrayList<Map<String, Object>>());
 	    projectDetail.put("drawings", new ArrayList<Map<String, Object>>());
 
 	    Session session = cypherExecutor.getSession();
 	    Result resultProject = session.run("""
-	    	MATCH (n:Project {uuid:$uuid}) 
-	        RETURN n.uuid as uuid, n.name as name, n.company as company,
-	               n.country as country, n.standard as standard,
-	               apoc.date.format(n.last_update_date, 'ms', 'yyyy-MM-dd HH:mm:ss', 'Asia/Seoul') as last_update_date
+	    		MATCH (p:Project {uuid:$uuid}) 
+	            RETURN p.uuid AS uuid, 
+	    		       p.project_name AS project_name, 
+	    		       p.company AS company,
+	    		       p.country AS country, 
+	    		       p.standard AS standard,
+	    		       p.line_no_pattern AS line_no_pattern, 
+	    		       p.drawing_no_pattern AS drawing_no_pattern,
+	    		       50 AS progress,
+	                   apoc.date.format(p.last_update_date, 'ms', 'yyyy-MM-dd HH:mm:ss', 'Asia/Seoul') as last_update_date
+
 	    	""", paramMap);
 	    
-	    if (!resultProject.hasNext()) {
-	        System.out.println("Project Not found.");
-	        throw new RuntimeException("Project Not found.");
-	    }
+
 	    projectDetail.putAll(resultProject.next().asMap());
 	    projectDetail.put("drawings", drawingService.getDrawingList(projectId));
 
