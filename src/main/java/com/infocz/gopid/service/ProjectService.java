@@ -27,18 +27,16 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.infocz.util.conf.Config;
 import com.infocz.util.neo4j.CypherExecutor;
 import com.infocz.util.ocr.TypeTitleExtractor;
 
 @Service
 public class ProjectService {
 
-    @Value("${com.infocz.upload.temp.path}") // application 의 properties 의 변수
-    private String uploadPath;
+	@Autowired
+	private Config config;
 
-    @Value("${com.infocz.parser.dpi}") // application 의 properties 의 변수
-    private String dpi;
-    
     @Autowired
     private TypeTitleExtractor titleExtractor;
     
@@ -129,7 +127,7 @@ public class ProjectService {
     				MATCH (f:File {uuid:$uuid}) SET f.drawing_created = 'Y'
     				""", fileMap);
 
-    		Resource file = new UrlResource(Paths.get(uploadPath).resolve(recordfile.get("path").asString()).toUri());
+    		Resource file = new UrlResource(Paths.get(config.getUploadPath()).resolve(recordfile.get("path").asString()).toUri());
     		
     		String mediaType = new Tika().detect(file.getInputStream());
     	    if(mediaType.endsWith("pdf")){
@@ -139,7 +137,7 @@ public class ProjectService {
 
     	        for (int page = 0; page < pageCount; page++) {
     	            // PDF 페이지를 렌더링하여 BufferedImage로 변환
-    	            BufferedImage image = pdfRenderer.renderImageWithDPI(page, Integer.parseInt(dpi), ImageType.RGB);
+    	            BufferedImage image = pdfRenderer.renderImageWithDPI(page, Config.BASE_DPI, ImageType.RGB);
     	            saveDrawingInfo(projectMap, image, page, fileMap);
     	        }
     	    }else if(mediaType.startsWith("image/")) {
@@ -161,7 +159,7 @@ public class ProjectService {
 
         String drawingUuid = UUID.randomUUID().toString();
         // PNG 파일 이름 지정
-        String drawingFilePath = uploadPath + "/" + drawingUuid;
+        String drawingFilePath = config.getUploadPath() + "/" + drawingUuid;
 
         // BufferedImage를 PNG 파일로 저장
         ImageIO.write(image, "PNG", new File(drawingFilePath));
@@ -177,7 +175,7 @@ public class ProjectService {
         );
         String thumnbnailUuid = UUID.randomUUID().toString();
         // 이미지 저장
-        ImageIO.write(thumbnailImage, "png", new File(uploadPath + "/" + thumnbnailUuid));
+        ImageIO.write(thumbnailImage, "png", new File(config.getUploadPath() + "/" + thumnbnailUuid));
         
         System.out.println("Page " + (page + 1) + " saved as " + drawingFilePath);
         

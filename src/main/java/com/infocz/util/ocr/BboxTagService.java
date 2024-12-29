@@ -7,8 +7,6 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +32,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.infocz.gopid.StandAloneApp;
+import com.infocz.util.conf.Config;
 import com.infocz.util.neo4j.CypherExecutor;
 
 import net.sourceforge.tess4j.ITessAPI.TessPageIteratorLevel;
@@ -45,11 +43,14 @@ import net.sourceforge.tess4j.Word;
 @ComponentScan(basePackages = {"com.infocz"})
 @Service
 public class BboxTagService {
-    private static final Logger log = LoggerFactory.getLogger(BboxTagService.class);
- // 클래스 시작 부분에 추가
+	
+	@Autowired
+	private Config config;
+	
+	private static final Logger log = LoggerFactory.getLogger(BboxTagService.class);
 
 	public static void main(String[] args) throws IOException {
-        SpringApplication app = new SpringApplication(StandAloneApp.class);
+        SpringApplication app = new SpringApplication(BboxTagService.class);
         
         // 환경변수나 시스템 프로퍼티로 모드 결정
         String mode = System.getProperty("app.mode", "web");  // 기본값은 web
@@ -61,25 +62,36 @@ public class BboxTagService {
 
         BboxTagService bboxTagService = context.getBean(BboxTagService.class);
         
-        
-        bboxTagService.tagBbox("ff2cf25a-3d36-41fc-a2b5-be931fbdee29", 13 * 1200 / 300);
+        bboxTagService.tagBbox("5b44ad57-495b-4731-bf14-e671bc7c4e39");
 	}
 	
 	@Autowired
 	private CypherExecutor cypherExecutor;
 	
+	private Map<String, Object> getRunInfo(String runId) {
+		Session session = cypherExecutor.getSession();
+		return session.run("""
+				MATCH (r:Run {uuid:$uuid}) <- [:HAS_RUN] - (d:Drawing) <- [:HAS_DRAWING] - (p:Project),
+				      (f:File {uuid:d.file_uuid})
+				RETURN p.drawing_no_pattern AS drawing_no_pattern,
+				       f.path AS file_path 
+			""", Map.of("uuid", runId)).single().asMap();
+	}
+	
     @Transactional
-    public List<BboxRect> tagBbox(String runId, int minCharH) throws IOException{
+    public List<BboxRect> tagBbox(String runId) throws IOException{
 
         log.info("start");
+        Map<String, Object> runInfo = getRunInfo(runId);
+        int minCharH = config.getMinCharH((String)runInfo.get("drawing_no_pattern"));
 		Session session = cypherExecutor.getSession();
     	// bbox 좌표 목록 가져오기
 		List<BboxRect> bboxList = getBboxRectList(runId);
         // 이미지파일을 테서렉트로 ocr처리
-        Tesseract tesseract = prepareTesseract(runId);
+        Tesseract tesseract = config.getTesseract();
         // 원본이미지
-		//BufferedImage fullImage = prepare1200DPIImage(runId, "A");
-		BufferedImage fullImage = ImageIO.read(new File("D:/pgm_data/work/crop_cvtest/processed_plus1.png"));
+		BufferedImage fullImage = prepare1200DPIImage(runInfo);
+		
 		for(BboxRect bbox:bboxList) {
 	        if(log.isDebugEnabled()) {
 	        	if(!"Z9".equals(bbox.text)) continue;
@@ -106,7 +118,7 @@ public class BboxTagService {
     }
 
     private String getDebugFileName(String bboxIndex, int areaIndex, int totalAreas, int windowIndex, int wordIndex) {
-        return String.format("D:/pgm_data/work/crop/%s_%dW%d_%03d_%03d.png",
+        return String.format(config.getDebugFilePath()+"%s_%dW%d_%03d_%03d.png",
             bboxIndex,
             areaIndex,
             totalAreas,
@@ -375,57 +387,25 @@ public class BboxTagService {
             .collect(Collectors.toList());
     }
     
-    private Tesseract prepareTesseract(String runId) throws IOException {
-        // 이미지파일을 테서렉트로 ocr처리
-		Tesseract tesseract = new Tesseract();
-		tesseract.setDatapath("C:/Program Files/Tesseract-OCR/tessdata"); // Tesseract 설치 경로
-		tesseract.setVariable("tessedit_char_whitelist", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-._/ \"");
-		tesseract.setLanguage("eng"); // 언어 설정
-		
-//		tesseract.setVariable("textord_min_linesize", "47");  // 52 - (52 * 0.1)
-//		tesseract.setVariable("textord_max_linesize", "57");  // 52 + (52 * 0.1)
-
-		// 노이즈 제거 설정 약간 강화, 노이즈는 검출결과 필터링에 사용되므로 , 적용이 어려움
-//		tesseract.setVariable("textord_noise_sizelimit", "1.3");    // 1.0에서 0.3 증가
-//		tesseract.setVariable("textord_noise_normratio", "2.4");    // 2.2에서 0.2 증가
-//		tesseract.setVariable("textord_noise_snr", "0.2");          // 0.1에서 0.1 증가
-		
-		// 페이지 분할 모드 설정
-		tesseract.setVariable("tessedit_pageseg_mode", "7");
-
-		// 디버그 레벨 설정
-		tesseract.setVariable("debug_level", "0");
-		tesseract.setVariable("debug_file", "/dev/null");
-		return tesseract;
-    }
-    
-    private BufferedImage prepare1200DPIImage(String runId, String drawing_no_pattern) throws IOException {
-    	// find by runId
-    	String filePath = "D:/pgm_data/work/A.pdf";
-	    PDDocument document = Loader.loadPDF(new File(filePath));
-        PDFRenderer pdfRenderer = new PDFRenderer(document);
-        
-    	BufferedImage image = pdfRenderer.renderImageWithDPI(0, 1200, ImageType.BINARY);
-
-        Graphics2D g2d = image.createGraphics();
-        // 칠할 색상 설정
-        g2d.setColor(Color.white);
-        // 지정된 영역을 색상으로 채우기
-        if("A".equals(drawing_no_pattern)) {
-        	g2d.fillRect(4200, 1, 755, 3500);
-        }else  if("B".equals(drawing_no_pattern)) {
-        	g2d.fillRect(7652, 5663, 2206, 1343);
-        }else  if("C".equals(drawing_no_pattern)) {
-        	g2d.fillRect(4125, 1, 630, 3500);
-        }else  if("D".equals(drawing_no_pattern)) {
-        	g2d.fillRect(8333, 1, 1480, 7010);
+    private BufferedImage prepare1200DPIImage(Map<String, Object> runInfo) throws IOException {
+    	
+    	String filePath = (String)runInfo.get("file_path"); 
+    	String drawing_no_pattern = (String)runInfo.get("drawing_no_pattern");
+        try (PDDocument document = Loader.loadPDF(new File(filePath))) {
+	        PDFRenderer pdfRenderer = new PDFRenderer(document);
+	        
+	    	BufferedImage image = pdfRenderer.renderImageWithDPI(0, Config.USE_DPI, ImageType.BINARY);
+	
+	        Graphics2D g2d = image.createGraphics();
+	        g2d.setColor(Color.white);
+	        g2d.fill(config.getLegendArea(drawing_no_pattern));
+	
+	        // Graphics2D 객체 해제
+	        g2d.dispose();
+	        BufferedImage glyphImage = ImageUtil.preprocessOnlyGlyph(image, config.getMaxCharH(drawing_no_pattern));
+	    	ImageIO.write(glyphImage, "PNG", new File(config.getDebugFilePath() + drawing_no_pattern+"_1200_001.png"));
+	    	return glyphImage;
         }
-
-        // Graphics2D 객체 해제
-        g2d.dispose();
-        
-    	ImageIO.write(image, "PNG", new File("D:/pgm_data/work/A_1200_001.png"));
-    	return image;
     }
     
     private List<BboxRect> getBboxRectList(String runId) {
@@ -530,7 +510,6 @@ public class BboxTagService {
             	innerRatio = 0.1; // bbox의 외곽선 경계 늘이기 줄이기
             	innerSearch = true;
             	outerSearch = false;
-            	//tessWhiteList = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-._/ \"";
             }else if(label.contains("scarecrow")) {
             	innerSearch = true;
             	outerSearch = true;
@@ -538,8 +517,6 @@ public class BboxTagService {
             }else {
             	psmMode = 7;
             }
-            
-            
         }
         
         public double getMinDistance(Point2D point) {

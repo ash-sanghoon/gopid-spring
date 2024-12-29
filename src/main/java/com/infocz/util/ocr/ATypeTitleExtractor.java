@@ -8,13 +8,13 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
 
-import com.infocz.gopid.StandAloneApp;
+import com.infocz.util.conf.Config;
 
 import net.sourceforge.tess4j.ITessAPI.TessPageIteratorLevel;
 import net.sourceforge.tess4j.Tesseract;
@@ -22,11 +22,10 @@ import net.sourceforge.tess4j.Word;
 
 @Component
 public class ATypeTitleExtractor {
-	
-    @Value("${com.infocz.upload.debug.path}") // application 의 properties 의 변수
-    private String debugPath;
 
-    private static final int BASE_DPI = 300;
+	@Autowired
+	private Config config;
+	
     private static final int BASE_HEADER_HEIGHT = 14;  // 300 DPI에서의 높이
     
 	private int SEARCH_WIDTH; 
@@ -43,10 +42,11 @@ public class ATypeTitleExtractor {
 		
 	}
 	
-	public List<String> extract(List<String> alter, BufferedImage image, Tesseract tesseract, int dpi) {
-		SEARCH_WIDTH = BASE_HEADER_HEIGHT * dpi / BASE_DPI * 20; // 40자 검색범위
+	public List<String> extract(List<String> alter, BufferedImage image) {
+		Tesseract tesseract = config.getTesseract();
+		SEARCH_WIDTH = BASE_HEADER_HEIGHT * 20; // 40자 검색범위
 		STEP_SIZE_WIDTH = (int)(SEARCH_WIDTH / 3); // 검색 이동 간격
-		SEARCH_HEIGHT = BASE_HEADER_HEIGHT * dpi / BASE_DPI * 2; // 2줄 범위
+		SEARCH_HEIGHT = BASE_HEADER_HEIGHT * 2; // 2줄 범위
 		STEP_SIZE_HEIGHT = (int)(SEARCH_HEIGHT / 3); // 검색 이동 간격
 
 		String drawingNumber = findHeaderAndValue(image, new String[] { "DRAWING", "NUMBER" }, tesseract);
@@ -96,7 +96,7 @@ public class ATypeTitleExtractor {
 							BufferedImage valueImage = fullImage.getSubimage(valueRect.x, valueRect.y, valueRect.width, valueRect.height);
 
 							// 디버깅을 위해 잘라낸 이미지 저장
-							ImageIO.write(valueImage, "png", new File(debugPath+"/"+firstWord.getText()+"_result.png"));
+							ImageIO.write(valueImage, "png", new File(config.getDebugFilePath()+"/"+firstWord.getText()+"_result.png"));
 							String value = tesseract.doOCR(valueImage).trim();
 
 							return value;
@@ -112,7 +112,7 @@ public class ATypeTitleExtractor {
 	}
 	
 	public static void main(String[] args) throws IOException {
-        SpringApplication app = new SpringApplication(StandAloneApp.class);
+        SpringApplication app = new SpringApplication(ATypeTitleExtractor.class);
         
         // 환경변수나 시스템 프로퍼티로 모드 결정
         String mode = System.getProperty("app.mode", "web");  // 기본값은 web
@@ -124,11 +124,7 @@ public class ATypeTitleExtractor {
 
         ATypeTitleExtractor aTypeTitleExtractor = context.getBean(ATypeTitleExtractor.class);
 
-		int DPI = 300;
-		Tesseract tesseract = new Tesseract();
-		tesseract.setDatapath("C:/Program Files/Tesseract-OCR/tessdata"); // Tesseract 설치 경로
-		tesseract.setVariable("tessedit_char_whitelist", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-._/ ");
 		BufferedImage image = ImageIO.read(new File("D:/pgm_data/test4/18c19c60-c2dc-4fdf-8b3e-89b66ffa1d69"));
-		System.out.println(aTypeTitleExtractor.extract(List.of("a", "b"), image, tesseract, DPI));
+		System.out.println(aTypeTitleExtractor.extract(List.of("a", "b"), image));
 	}
 }
