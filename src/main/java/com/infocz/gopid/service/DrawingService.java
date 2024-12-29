@@ -27,7 +27,8 @@ public class DrawingService {
 		Session session = cypherExecutor.getSession();
         Result resultDrawing = session.run("""
         		MATCH 	(d:Drawing) <- [] - (n:Project {uuid:$uuid})  
-        		RETURN 	d ORDER BY d.drawing_no, d.sheet_no
+        		RETURN 	d 
+        		ORDER BY d.file_page_no
         		""", Map.of("uuid", projectId));
     	List<Map<String, Object>> listNew = new ArrayList<Map<String, Object>>();
         if(resultDrawing.hasNext()) {
