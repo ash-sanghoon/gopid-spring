@@ -20,7 +20,6 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -35,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.xml.sax.SAXException;
 
+import com.infocz.util.conf.Config;
 import com.infocz.util.neo4j.CypherExecutor;
 
 import lombok.extern.log4j.Log4j2;
@@ -46,15 +46,15 @@ public class FilesController {
 	@Autowired
 	private CypherExecutor cypherExecutor;
 
-    @Value("${com.infocz.upload.temp.path}") // application 의 properties 의 변수
-    private String uploadPath;
-    
+	@Autowired
+	private Config config;
+
 	@GetMapping("/download/{filename:.+}")
 	@ResponseBody
 	public ResponseEntity<Resource> serveFile(@PathVariable String filename) throws MalformedURLException, FileNotFoundException {
 
 		System.out.println("serveFile");
-		Path filePath = Paths.get(uploadPath).resolve(filename);
+		Path filePath = Paths.get(config.getUploadPath()).resolve(filename);
 		Resource file = new UrlResource(filePath.toUri());
 		if(!(file.exists() || file.isReadable())) {
 			throw new FileNotFoundException("Could not read file: " + filename);
@@ -66,7 +66,7 @@ public class FilesController {
 	@ResponseBody
 	public ResponseEntity<Resource> getImageDynamicType(@PathVariable String filename) throws IOException {
 		System.out.println("getImageDynamicType");
-		Path filePath = Paths.get(uploadPath).resolve(filename);
+		Path filePath = Paths.get(config.getUploadPath()).resolve(filename);
 		Resource file = new UrlResource(filePath.toUri());
 		if(!(file.exists() || file.isReadable())) {
 			throw new FileNotFoundException("Could not read file: " + filename);
@@ -96,7 +96,7 @@ public class FilesController {
             String orginalName = uploadFile.getOriginalFilename();
             String fileName = orginalName.substring(orginalName.lastIndexOf("\\") + 1);
             String uuid = UUID.randomUUID().toString();
-            String saveName = uploadPath + File.separator + UUID.randomUUID().toString();
+            String saveName = config.getUploadPath() + File.separator + UUID.randomUUID().toString();
 
             Path savePath = Paths.get(saveName);
 

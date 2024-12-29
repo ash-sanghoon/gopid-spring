@@ -42,7 +42,7 @@ public class ImageUtil {
 	    Mat stats = new Mat();
 	    Mat centroids = new Mat();
 	    
-	    int numLabels = Imgproc.connectedComponentsWithStats(
+	    Imgproc.connectedComponentsWithStats(
 	        processed, labels, stats, centroids, 4
 	    );
 	    
