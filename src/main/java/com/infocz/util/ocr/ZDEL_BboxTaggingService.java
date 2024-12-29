@@ -1,12 +1,17 @@
 package com.infocz.util.ocr;
 
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -35,7 +40,7 @@ import net.sourceforge.tess4j.Word;
 @SpringBootApplication
 @ComponentScan(basePackages = {"com.infocz"})
 @Service
-public class BboxTaggingService {
+public class ZDEL_BboxTaggingService {
     @Value("${com.infocz.parser.dpi}") // application 의 properties 의 변수
     private String dpi;
 
@@ -53,10 +58,11 @@ public class BboxTaggingService {
         app.setWebApplicationType(WebApplicationType.NONE);
         ConfigurableApplicationContext context = app.run(args);
 
-        BboxTaggingService bboxTaggingService = context.getBean(BboxTaggingService.class);
+        ZDEL_BboxTaggingService bboxTaggingService = context.getBean(ZDEL_BboxTaggingService.class);
         
         bboxTaggingService.tagBbox("");
     }
+    
 	@Autowired
 	private CypherExecutor cypherExecutor;
 
@@ -76,7 +82,7 @@ public class BboxTaggingService {
     @Transactional
     public List<Map<String, Object>> tagBbox(String runId) throws IOException{
     	
-    	runId = "b3dc67ff-03c2-4dbf-a659-4ab345fafa85";
+    	runId = "ff2cf25a-3d36-41fc-a2b5-be931fbdee29";
     	// DPI에 따른 최소 크기 계산
     	int minSize = BASE_HEADER_HEIGHT * Integer.parseInt(dpi) / BASE_DPI; 
     	
@@ -99,7 +105,7 @@ public class BboxTaggingService {
 		Tesseract tesseract = new Tesseract();
 		tesseract.setDatapath("C:/Program Files/Tesseract-OCR/tessdata"); // Tesseract 설치 경로
 		tesseract.setVariable("tessedit_char_whitelist", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-._/ ");
-		BufferedImage fullImage = ImageIO.read(new File("D:/pgm_data/test2/4ea011cc-4f25-4c6e-9ac0-d67f0deae03c"));
+		BufferedImage fullImage = ImageIO.read(new File("D:/pgm_data/test2/e19a37ef-0d8b-4c62-b308-c37269ef7d34"));
 
 		for(Map<String, Object> bbox : bboxList) {
 			String bboxId = (String)bbox.get("id");
@@ -116,11 +122,21 @@ public class BboxTaggingService {
 			}else if(bboxClass.contains("arrow")) {
 				continue;
 			}
+	    	if(topX > 1440 && topX < 1480){
+	    		if(topY > 1570 && topY < 1640) {
+	    			System.out.println("");
+	    		}
+	    	}
 
 			List<Word> foundWords = null;
 			if(bboxClass.contains("valve")) {
 			    foundWords = searchValveText(fullImage, bbox, minSize, tesseract);
 			} else {
+		    	if(topX > 2400 && topX < 2550){
+		    		if(topY > 3050 && topY < 3100) {
+		    			System.out.println("");
+		    		}
+		    	}
 			    BufferedImage croppedImage = fullImage.getSubimage(topX, topY, width, height);
 			    List<Word> words = tesseract.getWords(croppedImage, TessPageIteratorLevel.RIL_WORD);
 			    if (words == null || words.size() == 0) continue;
@@ -140,7 +156,7 @@ public class BboxTaggingService {
 			if(!"".equals(tag)) {
 				session.run("""
 						MATCH (r:Run {uuid:$uuid})  - [:CONTAINS] -> (b:Bbox {id:$bboxId})
-						SET   b.tag = $tag
+						SET   b.text = $tag
 						""", Map.of("uuid", runId, "tag", tag, "bboxId", bboxId));
 			}
 		}
@@ -180,10 +196,80 @@ public class BboxTaggingService {
         
         return foundWords;
     }
+    /**
+     * 좌표 정보를 포함하는 Word 래퍼 클래스
+     */
+    private static class WordWithLocation {
+        Word word;
+        Rectangle bounds;
+        
+        public WordWithLocation(Word word, Rectangle bounds) {
+            this.word = word;
+            this.bounds = bounds;
+        }
+    }
 
     /**
-     * 가로 방향 벨브의 위아래로 텍스트 탐색
+     * Words 병합 처리 함수
      */
+    private List<Word> mergeOverlappingWords(List<WordWithLocation> wordsList) {
+        if (wordsList == null || wordsList.isEmpty()) return null;
+        
+        List<WordWithLocation> mergedList = new ArrayList<>();
+        Set<Integer> processedIndices = new HashSet<>();
+        
+        // 첫 번째 word 기준 처리
+        List<WordWithLocation> firstGroup = new ArrayList<>();
+        firstGroup.add(wordsList.get(0));
+        for (int i = 1; i < wordsList.size(); i++) {
+            if (hasOverlap(wordsList.get(0).bounds, wordsList.get(i).bounds)) {
+                firstGroup.add(wordsList.get(i));
+                processedIndices.add(i);
+            }
+        }
+        mergedList.add(selectBestWord(firstGroup));
+        
+        // 마지막 word 기준 처리
+        List<WordWithLocation> lastGroup = new ArrayList<>();
+        WordWithLocation lastWord = wordsList.get(wordsList.size() - 1);
+        lastGroup.add(lastWord);
+        for (int i = 0; i < wordsList.size() - 1; i++) {
+            if (!processedIndices.contains(i) && hasOverlap(lastWord.bounds, wordsList.get(i).bounds)) {
+                lastGroup.add(wordsList.get(i));
+                processedIndices.add(i);
+            }
+        }
+        if (lastGroup.size() > 1) {
+            mergedList.add(selectBestWord(lastGroup));
+        }
+        
+        // 나머지 words 처리
+        for (int i = 0; i < wordsList.size(); i++) {
+            if (!processedIndices.contains(i)) {
+                mergedList.add(wordsList.get(i));
+            }
+        }
+        
+        return mergedList.stream().map(wl -> wl.word).collect(Collectors.toList());
+    }
+
+    /**
+     * 두 영역이 겹치는지 확인
+     */
+    private boolean hasOverlap(Rectangle r1, Rectangle r2) {
+        Rectangle intersection = r1.intersection(r2);
+        return intersection.width * intersection.height > 0;
+    }
+
+    /**
+     * 가장 높은 confidence를 가진 word 선택
+     */
+    private WordWithLocation selectBestWord(List<WordWithLocation> words) {
+        return words.stream()
+            .max(Comparator.comparingDouble(w -> w.word.getConfidence()))
+            .orElse(words.get(0));  // 모두 0이면 첫 번째 선택
+    }
+
     private List<Word> searchVerticalText(
             BufferedImage fullImage,
             int topX,
@@ -203,23 +289,30 @@ public class BboxTaggingService {
         BufferedImage verticalExpandedAreaImage = fullImage.getSubimage(vertExpX, vertExpY, vertExpWidth, vertExpHeight);
         ImageIO.write(verticalExpandedAreaImage, "png", new File("test/"+bboxId+"_vertical_expanded.png"));
         
+        List<WordWithLocation> foundWordsWithLocation = new ArrayList<>();
+        int foundCount = 0;
+        
         for (int y = 0; y <= verticalExpandedAreaImage.getHeight() - (minSize * 2); y += minSize / 2) {
             BufferedImage croppedImage = verticalExpandedAreaImage.getSubimage(
                 0, y, vertExpWidth, Math.min(minSize * 2, verticalExpandedAreaImage.getHeight() - y));
             List<Word> words = tesseract.getWords(croppedImage, TessPageIteratorLevel.RIL_WORD);
             
             if (isValidWords(words, new Rectangle(0, topY - vertExpY, width, height))) {
-                ImageIO.write(croppedImage, "png", new File("test/"+bboxId+"_"+words.get(0).getText()+"_vertical_result.png"));
-                return words;
+                String safeText = words.get(0).getText().replaceAll("[\\\\/:*?\"<>|]", "");
+                ImageIO.write(croppedImage, "png", new File("test/"+bboxId+"_"+safeText+"_vertical_result_"+(++foundCount)+".png"));
+                
+                // Word의 실제 위치 계산하여 저장
+                for (Word word : words) {
+                    Rectangle wordBounds = word.getBoundingBox();
+                    wordBounds.translate(0, y);  // y 좌표 조정
+                    foundWordsWithLocation.add(new WordWithLocation(word, wordBounds));
+                }
             }
         }
         
-        return null;
+        return mergeOverlappingWords(foundWordsWithLocation);
     }
 
-    /**
-     * 세로 방향 벨브의 좌우로 텍스트 탐색
-     */
     private List<Word> searchHorizontalText(
             BufferedImage fullImage,
             int topX,
@@ -238,25 +331,31 @@ public class BboxTaggingService {
         
         BufferedImage horizontalExpandedAreaImage = fullImage.getSubimage(
             horizExpX, horizExpY, horizExpWidth, horizExpHeight);
-        ImageIO.write(horizontalExpandedAreaImage, "png", new File("test/"+bboxId+"_expanded.png"));
+        ImageIO.write(horizontalExpandedAreaImage, "png", new File("test/"+bboxId+"_horizontal_expanded.png"));
         
-        for (int x = 0; x <= horizontalExpandedAreaImage.getWidth() - minSize; x += minSize / 2) {
+        List<WordWithLocation> foundWordsWithLocation = new ArrayList<>();
+        int foundCount = 0;
+        
+        for (int y = 0; y <= horizontalExpandedAreaImage.getHeight() - (minSize * 2); y += minSize / 2) {
             BufferedImage croppedImage = horizontalExpandedAreaImage.getSubimage(
-                x, 0, Math.min(minSize, horizontalExpandedAreaImage.getWidth() - x), horizExpHeight);
+                0, y, horizExpWidth, Math.min(minSize * 2, horizontalExpandedAreaImage.getHeight() - y));
             List<Word> words = tesseract.getWords(croppedImage, TessPageIteratorLevel.RIL_WORD);
             
             if (isValidWords(words, new Rectangle(topX - horizExpX, 0, width, height))) {
-                ImageIO.write(croppedImage, "png", new File("test/"+bboxId+"_"+words.get(0).getText()+"_result.png"));
-                return words;
+                String safeText = words.get(0).getText().replaceAll("[\\\\/:*?\"<>|]", "");
+                ImageIO.write(croppedImage, "png", new File("test/"+bboxId+"_"+safeText+"_horizontal_result_"+(++foundCount)+".png"));
+                
+                for (Word word : words) {
+                    Rectangle wordBounds = word.getBoundingBox();
+                    wordBounds.translate(0, y);
+                    foundWordsWithLocation.add(new WordWithLocation(word, wordBounds));
+                }
             }
         }
         
-        return null;
+        return mergeOverlappingWords(foundWordsWithLocation);
     }
 
-    /**
-     * 정사각형 벨브 주변 전체 영역 텍스트 탐색
-     */
     private List<Word> searchSquareText(
             BufferedImage fullImage,
             int topX,
@@ -278,28 +377,32 @@ public class BboxTaggingService {
         ImageIO.write(expandedAreaImage, "png", new File("test/"+bboxId+"_square_expanded.png"));
         
         List<Word> words = tesseract.getWords(expandedAreaImage, TessPageIteratorLevel.RIL_WORD);
-        
+        List<WordWithLocation> foundWordsWithLocation = new ArrayList<>();
+        int foundCount = 0;
+
         if (words != null && words.size() > 0) {
             Rectangle originalBbox = new Rectangle(topX - squareExpX, topY - squareExpY, width, height);
-            List<Word> nonOverlappingWords = new ArrayList<>();
             
             for (Word word : words) {
                 Rectangle wordBox = word.getBoundingBox();
                 Rectangle intersection = originalBbox.intersection(wordBox);
                 if (intersection.width * intersection.height <= 0.1 * (wordBox.width * wordBox.height)) {
-                    nonOverlappingWords.add(word);
+                    foundWordsWithLocation.add(new WordWithLocation(word, wordBox));
+                    
+                    String safeText = word.getText().replaceAll("[\\\\/:*?\"<>|]", "");
+                    BufferedImage wordImage = expandedAreaImage.getSubimage(
+                        wordBox.x, wordBox.y, wordBox.width, wordBox.height);
+                    ImageIO.write(wordImage, "png", 
+                        new File("test/"+bboxId+"_"+safeText+"_square_result_"+(++foundCount)+".png"));
                 }
-            }
-            
-            if (!nonOverlappingWords.isEmpty()) {
-                ImageIO.write(expandedAreaImage, "png", new File("test/"+bboxId+"_"+nonOverlappingWords.get(0).getText()+"_square_result.png"));
-                return nonOverlappingWords;
             }
         }
         
-        return null;
+        return mergeOverlappingWords(foundWordsWithLocation);
     }
-
+    /**
+     * 발견된 단어들이 유효한지 검사 (겹침 체크)
+     */
     private boolean isValidWords(List<Word> words, Rectangle originalBbox) {
         if (words == null || words.isEmpty()) {
             return false;
@@ -314,4 +417,5 @@ public class BboxTaggingService {
         }
         
         return true;
-    }}
+    }
+}

@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 
-import com.infocz.util.ocr.BboxTaggingService;
+import com.infocz.util.ocr.ZDEL_BboxTaggingService;
 
 @SpringBootApplication
 @ComponentScan(basePackages = {"com.infocz"})
@@ -24,7 +24,7 @@ public class StandAloneApp {
         app.setWebApplicationType(WebApplicationType.NONE);
         ConfigurableApplicationContext context = app.run(args);
 
-        BboxTaggingService bboxTaggingService = context.getBean(BboxTaggingService.class);
+        ZDEL_BboxTaggingService bboxTaggingService = context.getBean(ZDEL_BboxTaggingService.class);
         
         bboxTaggingService.tagBbox("");
     }
