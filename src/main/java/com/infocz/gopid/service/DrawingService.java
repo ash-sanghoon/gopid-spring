@@ -223,17 +223,17 @@ public class DrawingService {
 				    result.top_y as top_y,
 				    result.bottom_x as bottom_x,
 				    result.bottom_y as bottom_y,
-				    COALESCE(result.text, 'test') as text,
+				    COALESCE(result.text, '') as text,
 				    COALESCE(result.line_no) as line_no,
 				    result.state as state
 				
 				UNION
 				
 				MATCH (d:Drawing) - [:HAS_RUN] -> (r:Run  {uuid:$uuid})
-				MATCH (r)-[:CONTAINS]->(b:Bbox)<-[:CONNECTS_TO]-(j:Joint)
+				MATCH (r)-[:CONTAINS]->(b:Bbox)-[:CONNECTS_TO]-(j:Joint)
 				WHERE COALESCE(j.state, '') <> 'del'
 				WITH DISTINCT {
-				    id: j.uuid,
+				    id: j.id,
 				    symbol_type: 'Joint',
 				    top_x: j.x * d.width - 2,
 				    top_y: j.y * d.height - 2,
@@ -289,38 +289,53 @@ public class DrawingService {
         // Fetch edges
         String fetchEdgesQuery = 
         		"""
-				// First, collect all Bbox nodes and their connections
 				MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
-				MATCH (bbox)-[r:CONNECTS_TO]->(target:Bbox)
+				WITH bbox
+				MATCH (bbox)-[:CONNECTS_TO]-(connected)
+				WHERE connected:Bbox OR connected:Joint
+				WITH bbox, COLLECT(connected) + bbox AS all_nodes
+				UNWIND all_nodes AS n1
+				UNWIND all_nodes AS n2
+				MATCH (n1)-[r:CONNECTS_TO]-(n2)
 				WHERE COALESCE(r.state, '') <> 'del'
-				WITH COLLECT({
-				    id: r.id,
-				    source: bbox.id,
-				    target: target.id
-				}) as bbox_connections
-				
-				// Get Joint connections with Bbox
-				MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
-				MATCH (bbox)<-[:CONNECTS_TO]-(j:Joint)-[:CONNECTS_TO]->(target:Bbox)
-				WHERE COALESCE(j.state, '') <> 'del'
-				WITH bbox_connections, COLLECT(DISTINCT {
-				    id: j.uuid,  // Using Joint's uuid as connection id
-				    source: j.uuid,  // Using Joint's uuid as source id
-				    target: target.id
-				}) as joint_target_connections,
-				COLLECT(DISTINCT {
-				    id: j.uuid,  // Using Joint's uuid as connection id
-				    source: bbox.id,
-				    target: j.uuid  // Using Joint's uuid as target id
-				}) as joint_source_connections
-				
-				// Combine all connections and unwrap
-				WITH bbox_connections + joint_source_connections + joint_target_connections as all_connections
-				UNWIND all_connections as connection
-				RETURN connection.id as id,
-				       connection.source as source,
-				       connection.target as target
-        		"""; 
+				AND COALESCE(n1.state, '') <> 'del'
+				AND COALESCE(n2.state, '') <> 'del'
+				RETURN DISTINCT n1.id AS source, 
+				              n2.id AS target,
+				              r.id as id,
+				              r.line_no AS line_no
+				""";
+//        		"""
+//				// 시작 Bbox 찾기
+//				MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(start_bbox:Bbox)
+//				WHERE COALESCE(start_bbox.state, '') <> 'del'
+//				
+//				// 이 Bbox와 CONNECTS_TO로 연결된 모든 Bbox와 Joint 찾기
+//				MATCH (start_bbox)-[r1:CONNECTS_TO]-(connected_node)
+//				WHERE (connected_node:Bbox OR connected_node:Joint)
+//				AND COALESCE(connected_node.state, '') <> 'del'
+//				AND COALESCE(r1.state, '') <> 'del'
+//				
+//				// 찾은 노드들을 모두 합치기 (시작 Bbox + 연결된 Bbox들 + 연결된 Joint들)
+//				WITH collect(DISTINCT start_bbox) + collect(DISTINCT connected_node) as all_nodes
+//				
+//				// 이 노드들 사이의 모든 CONNECTS_TO 관계 찾기
+//				UNWIND all_nodes as source
+//				UNWIND all_nodes as target
+//				MATCH (source)-[r:CONNECTS_TO]-(target)
+//				WHERE source <> target  // 자기 자신과의 연결 제외
+//				AND ID(source) < ID(target)  // 한쪽 방향만 선택하여 중복 제거
+//				AND COALESCE(r.state, '') <> 'del'
+//				AND COALESCE(source.state, '') <> 'del'
+//				AND COALESCE(target.state, '') <> 'del'
+//				
+//				// 모든 노드가 id를 사용하도록 반환
+//				RETURN 
+//				    r.id as id,
+//				    source.id as source,
+//				    target.id as target,
+//				    r.line_no as line_no
+//        		"""; 
         		
 //        		"""
 //        	MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
@@ -336,6 +351,7 @@ public class DrawingService {
             Record record = edgeResult.next();
             Map<String, Object> edge = new HashMap<>();
             edge.put("name", record.get("id").asString());
+            edge.put("properties", Map.of("line_no", record.get("line_no").asString()));
             edge.put("source", record.get("source").asString());
             edge.put("target", record.get("target").asString());
             edges.add(edge);
@@ -392,10 +408,24 @@ public class DrawingService {
     		beforeState = (String)(result.next().asMap().get("state"));
     	}
     	
+    	//if("del".equals(action)) {
     	if("add".equals(beforeState) && "del".equals(action)) {
             result = session.run("""
-					MATCH (r:run {uuid:$uuid})-[:CONTAINS]->(s:Bbox {id: $sourceId}) - [p:CONNECTS_TO]->(t:Bbox {id: $targetId}) <- [:CONTAINS] - (r)
-	        		DELETE p
+				MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(start_bbox:Bbox)
+				WHERE COALESCE(start_bbox.state, '') <> 'del'
+				
+				// 이 Bbox와 CONNECTS_TO로 연결된 모든 Bbox와 Joint 찾기
+				MATCH (start_bbox)-[r1:CONNECTS_TO]-(connected_node)
+				WHERE (connected_node:Bbox OR connected_node:Joint)
+				AND COALESCE(connected_node.state, '') <> 'del'
+				AND COALESCE(r1.state, '') <> 'del'
+				
+				// 찾은 노드들을 모두 합치기 (시작 Bbox + 연결된 Bbox들 + 연결된 Joint들)
+				WITH collect(DISTINCT start_bbox) + collect(DISTINCT connected_node) as all_nodes
+            		        UNWIND all_nodes as source
+							UNWIND all_nodes as target
+							MATCH (source {id: $sourceId})-[r:CONNECTS_TO]-(target  {id: $targetId})
+							DELETE r
                     """, 
                     Map.of(
 	                    "uuid", runId,
@@ -408,27 +438,55 @@ public class DrawingService {
     		if("add".equals(beforeState)) {
     			tobeState = "add"; // 신규로 추가했던 객체는 언제나 add
     		}
-            result = session.run("""
-	            	MATCH (run:Run  {uuid:$uuid})
-					MATCH (run)-[:CONTAINS]->(source:Bbox {id: $sourceId})
-					MATCH (run)-[:CONTAINS]->(target:Bbox {id: $targetId})
-                    MERGE (source)-[r:CONNECTS_TO]->(target)
-                    ON CREATE SET r.id = $edgeId,
-            					  r.line_no = $line_no,
-            					  r.state = $state
-            		ON MATCH SET r.id = $edgeId,
-            					  r.line_no = $line_no,
-            					  r.state = $state
-                """,
-                Map.of(
-                    "uuid", runId,
-                    "sourceId", source,
-                    "targetId", target,
-                    "edgeId", edge_name,
-                    "line_no", Objects.requireNonNullElse(properties.get("line_no"), ""),
-                    "state", tobeState
-                )
-            );
+    		if("add".equals(action)) {
+    			result = session.run("""
+    					MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
+						WITH bbox
+						OPTIONAL MATCH (bbox)-[:CONNECTS_TO]-(connected:Joint)
+						WITH COLLECT(bbox) + COLLECT(connected) as nodes
+						MATCH (source), (target)
+						WHERE source IN nodes AND target IN nodes
+						  AND source.id = $sourceId AND target.id = $targetId
+						CREATE (source)-[r:CONNECTS_TO {id: $edgeId, state: 'state'}]->(target)
+    					""",                
+    					Map.of(
+	                    "uuid", runId,
+	                    "sourceId", source,
+	                    "targetId", target,
+	                    "edgeId", edge_name,
+	                    "line_no", Objects.requireNonNullElse(properties.get("line_no"), ""),
+	                    "state", tobeState
+    							));
+    		}else {
+	            result = session.run(
+	            		"""
+						MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
+						WITH bbox 
+						OPTIONAL MATCH (bbox)-[:CONNECTS_TO]-(connected)
+						WHERE connected:Bbox OR connected:Joint
+						WITH bbox, COLLECT(connected) + bbox AS all_nodes
+						UNWIND all_nodes AS n1
+						UNWIND all_nodes AS n2
+						WITH n1, n2
+						WHERE n1.id = $sourceId AND n2.id = $targetId
+						MERGE (n1)-[r:CONNECTS_TO]-(n2)
+						ON CREATE SET r.id = $edgeId,
+						              r.line_no = $line_no,
+						              r.state = $state
+						ON MATCH SET r.id = $edgeId,
+						             r.line_no = $line_no,
+						             r.state = $state
+						""",
+	                Map.of(
+	                    "uuid", runId,
+	                    "sourceId", source,
+	                    "targetId", target,
+	                    "edgeId", edge_name,
+	                    "line_no", Objects.requireNonNullElse(properties.get("line_no"), ""),
+	                    "state", tobeState
+	                )
+	            );
+    		}
     	}
 
 	    // 통계 정보 확인
