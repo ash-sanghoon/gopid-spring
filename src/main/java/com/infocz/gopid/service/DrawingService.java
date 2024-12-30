@@ -516,14 +516,14 @@ public class DrawingService {
     	    System.out.println("Relationships created: " + counters.relationshipsCreated());
     	    System.out.println("Properties set: " + counters.propertiesSet());
             result = session.run("""
-				MATCH (d:Drawing)-[:HAS_RUN]->(run:Run {uuid: $uuid})
-				MERGE (run)-[:CONTAINS]->(b:Bbox {id: $id})
-				WITH b
-				MATCH (b)-[r:BELONG_TO]->(s:Symbol)
-				DELETE r
-				WITH b
-				MATCH (s2:Symbol {name: $label})
-				MERGE (b)-[:BELONG_TO]->(s2)
+						MATCH (d:Drawing)-[:HAS_RUN]->(run:Run {uuid: $uuid})
+						MERGE (run)-[:CONTAINS]->(b:Bbox {id: $id})
+						WITH b
+						OPTIONAL MATCH (b)-[r:BELONG_TO]->(s:Symbol)
+						DELETE r
+						WITH b
+						MATCH (s2:Symbol {name: $label})
+						MERGE (b)-[:BELONG_TO]->(s2)
                 """, 
                 Map.of(
                     "uuid", runId,

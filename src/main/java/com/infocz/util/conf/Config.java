@@ -28,7 +28,7 @@ public class Config {
 	@Value("${project.d.font.300dpi.height}")
 	private int dCharHeight;
 	
-	public final static int USE_DPI = 1200;
+	//private final static int USE_DPI = 1200;
 	public final static int BASE_DPI = 300;
 	
 	public String getUploadPath() {
@@ -69,16 +69,44 @@ public class Config {
 	
 	public int getMinCharH(String drawingPattern) {
 		if("A".equals(drawingPattern)) {
-			return aCharHeight * USE_DPI / BASE_DPI;
+			return aCharHeight * 1200 / BASE_DPI;
 		}else if("B".equals(drawingPattern)) {
-			return bCharHeight * USE_DPI / BASE_DPI;
+			return bCharHeight * 300 / BASE_DPI;
 		}else if("C".equals(drawingPattern)) {
-			return cCharHeight * USE_DPI / BASE_DPI;
+			return cCharHeight * 1200 / BASE_DPI;
 		}else if("D".equals(drawingPattern)) {
-			return dCharHeight * USE_DPI / BASE_DPI;
+			return dCharHeight * 1200 / BASE_DPI;
 		}
-		return 13 * USE_DPI / BASE_DPI;
+		return 13 * 1200 / BASE_DPI;
 	}
+	
+	public int getUseDPI(String drawingPattern) {
+		if("A".equals(drawingPattern)) {
+			return 1200;
+		}else if("B".equals(drawingPattern)) {
+			return 300;
+		}else if("C".equals(drawingPattern)) {
+			return 1200;
+		}else if("D".equals(drawingPattern)) {
+			return 1200;
+		}
+		return 1200;
+	}
+	
+	public int getDPIRatio(String drawingPattern) {
+		if("A".equals(drawingPattern)) {
+			return 4;
+		}else if("B".equals(drawingPattern)) {
+			return 1;
+		}else if("C".equals(drawingPattern)) {
+			return 4;
+		}else if("D".equals(drawingPattern)) {
+			return 4;
+		}
+		return 4;
+	}
+	
+	
 	
 	@Value("${project.a.legend.coordinate}")
 	private String aLegend;
@@ -104,10 +132,10 @@ public class Config {
 			parts = dLegend.split(",");
 		}
         return new Rectangle(
-                Integer.parseInt(parts[0]) * USE_DPI / BASE_DPI,
-                Integer.parseInt(parts[1]) * USE_DPI / BASE_DPI,
-                Integer.parseInt(parts[2]) * USE_DPI / BASE_DPI,
-                Integer.parseInt(parts[3]) * USE_DPI / BASE_DPI
+                Integer.parseInt(parts[0]) * 1200 / BASE_DPI,
+                Integer.parseInt(parts[1]) * 1200 / BASE_DPI,
+                Integer.parseInt(parts[2]) * 1200 / BASE_DPI,
+                Integer.parseInt(parts[3]) * 1200 / BASE_DPI
             );
 	}
 }

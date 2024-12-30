@@ -5,3 +5,15 @@ MATCH (d:Drawing {uuid:"e19a37ef-0d8b-4c62-b308-c37269ef7d34"}), (r:Run {uuid:"5
 CREATE (d) - [:HAS_RUN] -> (r);
 
 MATCH (d:Drawing) return d;
+
+
+
+
+MATCH (r:Run {uuid:"b431f468-3271-4009-9da8-1a5c9d9d6341"})
+SET r.run_date = '2024-12-30 09:30', r.model_name = 'YOLO-8'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"b431f468-3271-4009-9da8-1a5c9d9d6341"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+

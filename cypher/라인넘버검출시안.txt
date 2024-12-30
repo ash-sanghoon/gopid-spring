@@ -1,0 +1,57 @@
+-- 도면 이미지에서 lineno찾기 - LinenoFinder클래스작성요청
+* LinenoFinder 전제사항
+0.java로 개발
+1.lineno 텍스트 그룹은 여러개, 여기저기 위치한다. lineno는 공백을 가지는 형식도 있어서 탐색결과 word가 여러개 가능함 
+2.lineno텍스트의 방향은 0도, 90도 2가지 경우이다. 지금 만드는 lineno찾기는 0도 만 고려, 외부에서 도면이미지를 90도 회전하여 lineno찾기 호출.
+3.lineno는 동일한 포맷을 가지고 있다. 도면의 종류 별로는 포맷이 다르다. 포맷확인 함수 별도 작성하여 확장성 고려
+4.도면이미지 상에서의 크기를 추정할 수 있다.
+
+*LinenoFinder 멤버변수
+1.RectMargin 도면이미지의 탐색대상을 꺼내는 외곽마진 비율 ( 1일때 마진 100%)
+[** 변경 크기 -> 높이** ] 2.charHeight lineno를 구성하는 문자의 높이 (pixel 단위)
+3.linenoChars lineno를 구성하는 문자의 갯수 
+4.linenoMarginRatioY 탐색할 window의 문자크기대비 마진 (y축 상하 방향 각각의 비율)
+5.linenoMarginRatioX 탐색할 window의 문자크기대비 마진 (x축 좌우 방향 각각의 비율)
+6.도면유형코드 - 도면의 종류를 표시, 도면의 종류별로 lineno 포맷 확인 메소드 개발
+7.slidingRatioX - 탐색Window 이동비율 (charHeight 기준, 1일 때 charHeight 이동)
+8.slidingRatioY
+9.acceptMinSizeRatio 올바른 word 인정하는 최소크기 비율. charHeight 기준
+10. acceptMaxSizeRatio 올바른 word 인정하는 최대크기 비율
+[** 추가 **] 11. linenoLengthMinRatio : 예상 lineno의 최소길이 비율
+[** 추가 **] 12. linenoLengthMaxRatio
+[** 추가 **] 13. charWidth lineno를 구성하는 문자의 좌우길이 (pixel 단위)
+
+*LinenoFinder findAllLineno
+** 파라미터
+  LinenoFinder 멤버 메소드로 자신의 멤버변수 
+1.BufferedImage 도면이미지
+2.Tesseract ocr 도구 instance
+
+** 동작흐름
+1.상하좌위 RectMargin을 제외한 탐색대상 영역 
+2.탐색대상 영역을 charHeight, linenoChars, linenoMarginRatioX,Y를 반영한 탐색Window로 분할 탐색
+3.탐색Winndow는 x축과 y축을 sliding  하며 탐색한다.
+  sliding 단위는 slidingRatioX, slidingRatioY
+4.탐색결과확인 및 누적
+  탐색결과 words 각각에 대하여 acceptMinSizeRatio, acceptMaxSizeRatio 를 적용 후 올바른 것만 누적
+5.누적결과 머지.
+  누적된 word의 boundingbox 의 영역을 전체 image의 좌표로 변환 하여
+  서로 50 %이상 겹치는 부분이 있으면 confidence가 높은 word만 남긴다.
+
+[** 추가 시작 **]
+** 누적결과 머지 결과로 다음 작업 수행
+  누적 후에 word들의 lineno 조립과 lineno 포맷검증을 수행한다.
+  1.lineno 를 나타내는 word의 조합 생성
+    -  조합은 가까운 word의 boundingbox 좌표상 묶음
+    -  word 끼리는 영역이 겹치지 않음( 만약 있으면 잘못 검출된 것임)
+    -  예를 들어 2개의 word가 한 lineno를 나타낸다면 이 조합의 길이는 예상 lineno 길이의 범위에 들어야함
+    -  예상 lineno의 최소길이 : linenoChars * charWidth *  linenoLengthMinRatio
+    -  예상 lineno의 최대길이 : linenoChars * charWidth *  linenoLengthMaxRatio
+  2.포맷검증 수행
+    -  포맷검증을 위해 조합된 word에서 텍스트를 조립한다.
+    -  두개 이상의 word가 있을 때, 왼쪽부터 word를 정렬하고
+       앞쪽 word의 끝과 뒤쪽 word의 앞사이에 거리가 발생하는데 이 거리를 넘지 않는 최대 문자의 수많큼 공백문자를 넣는다.
+       공백문자의 길이는 charWidth로 정한다.
+    -  이렇게 조립된 lineno 텍스트에 대해 isValidFormat을 수행한다.
+[** 추가 끝 **]
+

@@ -62,7 +62,14 @@ public class BboxTagService {
 
         BboxTagService bboxTagService = context.getBean(BboxTagService.class);
         
-        bboxTagService.tagBbox("5b44ad57-495b-4731-bf14-e671bc7c4e39");
+        // A 001
+        //bboxTagService.tagBbox("5b44ad57-495b-4731-bf14-e671bc7c4e39");
+        // A 001 3번 RUN
+        bboxTagService.tagBbox("b431f468-3271-4009-9da8-1a5c9d9d6341");
+        
+        // B 113
+        //bboxTagService.tagBbox("88910a37-fcbb-458c-b56f-cbc1c76e8dac");
+        
 	}
 	
 	@Autowired
@@ -74,7 +81,8 @@ public class BboxTagService {
 				MATCH (r:Run {uuid:$uuid}) <- [:HAS_RUN] - (d:Drawing) <- [:HAS_DRAWING] - (p:Project),
 				      (f:File {uuid:d.file_uuid})
 				RETURN p.drawing_no_pattern AS drawing_no_pattern,
-				       f.path AS file_path 
+				       f.path AS file_path,
+				       d.file_page_no AS file_page_no
 			""", Map.of("uuid", runId)).single().asMap();
 	}
 	
@@ -86,13 +94,19 @@ public class BboxTagService {
         int minCharH = config.getMinCharH((String)runInfo.get("drawing_no_pattern"));
 		Session session = cypherExecutor.getSession();
     	// bbox 좌표 목록 가져오기
-		List<BboxRect> bboxList = getBboxRectList(runId);
+		List<BboxRect> bboxList = getBboxRectList(runId, (String)runInfo.get("drawing_no_pattern"));
         // 이미지파일을 테서렉트로 ocr처리
         Tesseract tesseract = config.getTesseract();
         // 원본이미지
 		BufferedImage fullImage = prepare1200DPIImage(runInfo);
+    	ImageIO.write(fullImage, "PNG", new File(config.getDebugFilePath() + "reserve/" + ((String)runInfo.get("drawing_no_pattern"))+"_1200_001.png"));
+        
+		//BufferedImage fullImage = ImageIO.read(new File(config.getDebugFilePath()+"reserve/A_1200_001.png"));
+		//BufferedImage fullImage = ImageIO.read(new File(config.getDebugFilePath()+"reserve/B_1200_001.png"));
+		
 		
 		for(BboxRect bbox:bboxList) {
+	        log.info("bbox:"+bbox);
 	        if(log.isDebugEnabled()) {
 	        	if(!"Z9".equals(bbox.text)) continue;
 	        }
@@ -141,6 +155,9 @@ public class BboxTagService {
     private List<Word> findBboxTexts(BufferedImage fullImage, BboxRect currentBbox, List<BboxRect> neighborhood, Tesseract tesseract) throws IOException {
         List<Rectangle> searchAreas = new ArrayList<>();
         List<Word> allWords = new ArrayList<>();
+        
+        // Tesseract PSM 모드 설정
+        tesseract.setPageSegMode(currentBbox.psmMode);
         
         if(log.isDebugEnabled()) {
             log.debug("bbox:" + currentBbox);
@@ -254,9 +271,6 @@ public class BboxTagService {
                     // 각 탐색 영역의 전체 이미지 저장
                     saveDebugImage(fullImage, area, getDebugFileName(currentBbox.id, areaIndex, searchAreas.size(), 0, 0));
                 }
-                
-                // Tesseract PSM 모드 설정
-                tesseract.setPageSegMode(currentBbox.psmMode);
                 
                 // 슬라이딩 윈도우 탐색
                 int halfLineHeight = (int)(currentBbox.minCharH * currentBbox.windowSlideHeight);
@@ -381,9 +395,19 @@ public class BboxTagService {
                 }
             }
         }
-        
+        // 3-3. x, y 좌표로 정렬 후 리턴
         return filteredWords.stream()
             .filter(word -> word != null)
+            .sorted((w1, w2) -> {
+                Rectangle bbox1 = w1.getBoundingBox();
+                Rectangle bbox2 = w2.getBoundingBox();
+                
+                // x좌표 우선 비교
+                int yCompare = Integer.compare(bbox1.y, bbox2.y);
+                
+                // x좌표가 같으면 y좌표로 비교
+                return yCompare != 0 ? yCompare : Integer.compare(bbox1.x, bbox2.x);
+            })
             .collect(Collectors.toList());
     }
     
@@ -391,10 +415,11 @@ public class BboxTagService {
     	
     	String filePath = (String)runInfo.get("file_path"); 
     	String drawing_no_pattern = (String)runInfo.get("drawing_no_pattern");
+    	int pageNo = Integer.parseInt((String)runInfo.get("file_page_no")) - 1;
         try (PDDocument document = Loader.loadPDF(new File(filePath))) {
 	        PDFRenderer pdfRenderer = new PDFRenderer(document);
 	        
-	    	BufferedImage image = pdfRenderer.renderImageWithDPI(0, Config.USE_DPI, ImageType.BINARY);
+	    	BufferedImage image = pdfRenderer.renderImageWithDPI(pageNo, config.getUseDPI(drawing_no_pattern), ImageType.BINARY);
 	
 	        Graphics2D g2d = image.createGraphics();
 	        g2d.setColor(Color.white);
@@ -403,12 +428,11 @@ public class BboxTagService {
 	        // Graphics2D 객체 해제
 	        g2d.dispose();
 	        BufferedImage glyphImage = ImageUtil.preprocessOnlyGlyph(image, config.getMaxCharH(drawing_no_pattern));
-	    	ImageIO.write(glyphImage, "PNG", new File(config.getDebugFilePath() + drawing_no_pattern+"_1200_001.png"));
 	    	return glyphImage;
         }
     }
     
-    private List<BboxRect> getBboxRectList(String runId) {
+    private List<BboxRect> getBboxRectList(String runId, String drawingPattern) {
     	// bbox 좌표 목록 가져오기
 		Session session = cypherExecutor.getSession();
         List<BboxRect> list = new ArrayList<BboxRect>();
@@ -416,23 +440,23 @@ public class BboxTagService {
 					MATCH (d:Drawing) - [:HAS_RUN] -> (r:Run {uuid:$uuid})
 					MATCH (r) - [:CONTAINS] -> (b:Bbox) 
 					MATCH (b) - [:BELONG_TO] -> (s:Symbol)
-					return b.top_x * d.width * 4 AS top_x,
-			        b.top_y * d.height  * 4 AS top_y,
-			        b.bottom_x * d.width  * 4 AS bottom_x,
-			        b.bottom_y * d.height  * 4 AS bottom_y,
-			        b.id AS id,
-			        b.text as text,
-					s.name AS label
+					return b.top_x * d.width AS top_x,
+					        b.top_y * d.height AS top_y,
+					        b.bottom_x * d.width AS bottom_x,
+					        b.bottom_y * d.height AS bottom_y,
+					        b.id AS id,
+					        b.text as text,
+							s.name AS label
         		""", Map.of("uuid", runId));
         for(Map<String, Object> bbox: result.list(Record::asMap)) {
         	String id = (String)bbox.get("id");
         	String label = (String)bbox.get("label");
         	String text = (String)bbox.get("text");
-        	Integer topX = ((Double)bbox.get("top_x")).intValue();     // left
-        	Integer topY = ((Double)bbox.get("top_y")).intValue();     // top
-        	Integer bottomX = ((Double)bbox.get("bottom_x")).intValue();   // right 
-        	Integer bottomY = ((Double)bbox.get("bottom_y")).intValue();   // bottom
-        	BboxRect bboxRect = new BboxRect(id, label, text, topX, topY, bottomX, bottomY);
+        	Integer topX = ((Double)bbox.get("top_x")).intValue() * config.getDPIRatio(drawingPattern);     // left
+        	Integer topY = ((Double)bbox.get("top_y")).intValue() * config.getDPIRatio(drawingPattern);     // top
+        	Integer bottomX = ((Double)bbox.get("bottom_x")).intValue() * config.getDPIRatio(drawingPattern);   // right 
+        	Integer bottomY = ((Double)bbox.get("bottom_y")).intValue() * config.getDPIRatio(drawingPattern);   // bottom
+        	BboxRect bboxRect = new BboxRect(id, label, text, topX, topY, bottomX, bottomY, drawingPattern);
         	list.add(bboxRect);
         }
         return list;
@@ -462,61 +486,100 @@ public class BboxTagService {
     	//public int psmMode = 7; // LINE
     	public int psmMode = 8; // WORD
     	
-    	public double minCharH = getMinCharH(13); // 영역별 폰트 크기
+    	public double minCharH = 52; // 영역별 폰트 크기
     	
-    	public static int USE_DPI = 1200;
-    	public static int DEFAULT_DPI = 300;
-    	
-    	public static double getMinCharH(double areaCharH) {
-    		return areaCharH * USE_DPI / DEFAULT_DPI; 
-    	}
-        
         public String toString() {
         	return ""+label+", "+left+", "+top+", "+right+", "+bottom;
         }
         
-        public BboxRect(String id, String label, String text, int left, int top, int right, int bottom) {
+        public BboxRect(String id, String label, String text, int left, int top, int right, int bottom, String drawingPattern) {
             this.left = left;
             this.top = top;
             this.text = text;
             this.right = right;
             this.bottom = bottom;
             this.label = label;
+            this.minCharH = config.getMinCharH(drawingPattern);
             this.id = id;
             this.center = new Point2D.Double(
                     (left + right) / 2,
                     (top + bottom) / 2
                 );
-            if(label.contains("valve")) {
-            	outerRatio = 3.5;
-            	innerSearch = false;
-            	outerSearch = true;
-            	outerTopBottomChars = 6;
-            	outerLeftRightChars = 6;
-            }else if(label.contains("arrow")) {
-            	innerSearch = false;
-            	outerSearch = false;
-            }else if(label.contains("reducer")) {
-            	innerSearch = false;
-            	outerSearch = true;
-            	outerLeftRightChars = 10;
-            }else if(label.contains("drum")) {
-            	innerSearch = true;
-            	outerSearch = false;
-            	acceptMaxSizeRatio = 3;
-            	minCharH = getMinCharH(26);
-            	innerRatio = 0.5;
-            }else if(label.contains("from_to")) {
-            	innerRatio = 0.1; // bbox의 외곽선 경계 늘이기 줄이기
-            	innerSearch = true;
-            	outerSearch = false;
-            }else if(label.contains("scarecrow")) {
-            	innerSearch = true;
-            	outerSearch = true;
-            	outerRatio = 3.5;
-            }else {
-            	psmMode = 7;
+            if("A".equals(drawingPattern)) {
+	            if(label.contains("valve")) {
+	            	outerRatio = 3.5;
+	            	innerSearch = false;
+	            	outerSearch = true;
+	            	outerTopBottomChars = 6;
+	            	outerLeftRightChars = 6;
+	            }else if(label.contains("arrow")) {
+	            	innerSearch = false;
+	            	outerSearch = false;
+	            }else if(label.contains("reducer")) {
+	            	innerSearch = false;
+	            	outerSearch = true;
+	            	outerLeftRightChars = 10;
+	            }else if(label.contains("drum")) {
+	            	innerSearch = true;
+	            	outerSearch = false;
+	            	acceptMaxSizeRatio = 3;
+	            	minCharH = minCharH * 1.4;
+	            	innerRatio = 0.5;
+	            	acceptMinSizeRatio = 0.7;
+	            	acceptMaxSizeRatio = 1.1;
+	            }else if(label.contains("from_to")) {
+	            	innerRatio = 0.1; // bbox의 외곽선 경계 늘이기 줄이기
+	            	innerSearch = true;
+	            	outerSearch = false;
+	            }else if(label.contains("scarecrow")) {
+	            	innerSearch = true;
+	            	outerSearch = true;
+	            	innerRatio = 0;
+	            	outerRatio = 3.5;
+	            	outerTopBottomChars = 5; // 위아래 영역 좌우 글자영역 수
+	            	outerLeftRightChars = 6; // 좌우 영역의 좌우 글자영역 수
+	            }else {
+	            	psmMode = 7;
+	            }
             }
+            if("B".equals(drawingPattern)) {
+	            if(label.contains("valve")) {
+	            	outerRatio = 3.5;
+	            	innerSearch = false;
+	            	outerSearch = true;
+	            	outerTopBottomChars = 6;
+	            	outerLeftRightChars = 6;
+	            }else if(label.contains("arrow")) {
+	            	innerSearch = false;
+	            	outerSearch = false;
+	            }else if(label.contains("reducer")) {
+	            	innerSearch = false;
+	            	outerSearch = true;
+	            	outerLeftRightChars = 10;
+	            }else if(label.contains("drum")) {
+	            	innerSearch = true;
+	            	outerSearch = false;
+	            	acceptMaxSizeRatio = 3;
+	            	minCharH =  minCharH * 1.4;
+	            	innerRatio = 0.5;
+	            	acceptMinSizeRatio = 0.7;
+	            	acceptMaxSizeRatio = 1.1;
+	            }else if(label.contains("from_to")) {
+	            	innerRatio = 0.1; // bbox의 외곽선 경계 늘이기 줄이기
+	            	innerSearch = true;
+	            	outerSearch = false;
+	            }else if(label.contains("scarecrow")) {
+	            	innerSearch = true;
+	            	outerSearch = true;
+	            	innerRatio = 0;
+	            	outerRatio = 3.5;
+	            	outerTopBottomChars = 5; // 위아래 영역 좌우 글자영역 수
+	            	outerLeftRightChars = 6; // 좌우 영역의 좌우 글자영역 수
+	            }else {
+	            	psmMode = 7;
+	            }
+            }
+
         }
         
         public double getMinDistance(Point2D point) {
