@@ -200,20 +200,75 @@ public class DrawingService {
     	jsonData.put("drawing", runResult.next().asMap());
     	
         // Fetch nodes
-        String fetchNodesQuery = """
-        	MATCH (d:Drawing) - [:HAS_RUN] -> (r:Run  {uuid:$uuid})
-            MATCH (r)-[:CONTAINS]->(n:Bbox) - [:BELONG_TO] -> (s:Symbol)
-            WHERE COALESCE(n.state, '') <> 'del'
-            RETURN n.id AS id, 
-                   s.name AS symbol_type, 
-                   n.top_x * d.width AS top_x, 
-                   n.top_y * d.height AS top_y, 
-                   n.bottom_x * d.width AS bottom_x, 
-                   n.bottom_y * d.height AS bottom_y,
-                   n.text AS text,
-                   n.line_no AS line_no,
-                   n.state AS state
-            """;
+        String fetchNodesQuery = 
+        		"""
+				MATCH (d:Drawing) - [:HAS_RUN] -> (r:Run  {uuid:$uuid})
+				MATCH (r)-[:CONTAINS]->(n:Bbox) - [:BELONG_TO] -> (s:Symbol)
+				WHERE COALESCE(n.state, '') <> 'del'
+				WITH {
+				    id: n.id,
+				    symbol_type: s.name,
+				    top_x: n.top_x * d.width,
+				    top_y: n.top_y * d.height,
+				    bottom_x: n.bottom_x * d.width,
+				    bottom_y: n.bottom_y * d.height,
+				    text: n.text,
+				    line_no: n.line_no,
+				    state: n.state
+				} as result
+				RETURN 
+				    result.id as id,
+				    result.symbol_type as symbol_type,
+				    result.top_x as top_x,
+				    result.top_y as top_y,
+				    result.bottom_x as bottom_x,
+				    result.bottom_y as bottom_y,
+				    COALESCE(result.text, 'test') as text,
+				    COALESCE(result.line_no) as line_no,
+				    result.state as state
+				
+				UNION
+				
+				MATCH (d:Drawing) - [:HAS_RUN] -> (r:Run  {uuid:$uuid})
+				MATCH (r)-[:CONTAINS]->(b:Bbox)<-[:CONNECTS_TO]-(j:Joint)
+				WHERE COALESCE(j.state, '') <> 'del'
+				WITH DISTINCT {
+				    id: j.uuid,
+				    symbol_type: 'Joint',
+				    top_x: j.x * d.width - 2,
+				    top_y: j.y * d.height - 2,
+				    bottom_x: j.x * d.width + 2,
+				    bottom_y: j.y * d.height + 2,
+				    text: '',
+				    line_no: j.lineno,
+				    state: j.state
+				} as result
+				RETURN 
+				    result.id as id,
+				    result.symbol_type as symbol_type,
+				    result.top_x as top_x,
+				    result.top_y as top_y,
+				    result.bottom_x as bottom_x,
+				    result.bottom_y as bottom_y,
+				    COALESCE(result.text, '') as text,
+				    COALESCE(result.line_no, '') as line_no,
+				    result.state as state
+				                   """;
+        		
+//        """
+//        	MATCH (d:Drawing) - [:HAS_RUN] -> (r:Run  {uuid:$uuid})
+//            MATCH (r)-[:CONTAINS]->(n:Bbox) - [:BELONG_TO] -> (s:Symbol)
+//            WHERE COALESCE(n.state, '') <> 'del'
+//            RETURN n.id AS id, 
+//                   s.name AS symbol_type, 
+//                   n.top_x * d.width AS top_x, 
+//                   n.top_y * d.height AS top_y, 
+//                   n.bottom_x * d.width AS bottom_x, 
+//                   n.bottom_y * d.height AS bottom_y,
+//                   n.text AS text,
+//                   n.line_no AS line_no,
+//                   n.state AS state
+//            """;
 
         Result nodeResult = session.run(fetchNodesQuery, parmData);
         while (nodeResult.hasNext()) {
@@ -232,14 +287,49 @@ public class DrawingService {
         }
 
         // Fetch edges
-        String fetchEdgesQuery = """
-        	MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
-            MATCH (bbox)-[r:CONNECTS_TO]->(target:Bbox)
-            WHERE COALESCE(r.state, '') <> 'del'
-            RETURN r.id AS id, 
-                   bbox.id AS source, 
-                   target.id AS target
-            """;
+        String fetchEdgesQuery = 
+        		"""
+				// First, collect all Bbox nodes and their connections
+				MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
+				MATCH (bbox)-[r:CONNECTS_TO]->(target:Bbox)
+				WHERE COALESCE(r.state, '') <> 'del'
+				WITH COLLECT({
+				    id: r.id,
+				    source: bbox.id,
+				    target: target.id
+				}) as bbox_connections
+				
+				// Get Joint connections with Bbox
+				MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
+				MATCH (bbox)<-[:CONNECTS_TO]-(j:Joint)-[:CONNECTS_TO]->(target:Bbox)
+				WHERE COALESCE(j.state, '') <> 'del'
+				WITH bbox_connections, COLLECT(DISTINCT {
+				    id: j.uuid,  // Using Joint's uuid as connection id
+				    source: j.uuid,  // Using Joint's uuid as source id
+				    target: target.id
+				}) as joint_target_connections,
+				COLLECT(DISTINCT {
+				    id: j.uuid,  // Using Joint's uuid as connection id
+				    source: bbox.id,
+				    target: j.uuid  // Using Joint's uuid as target id
+				}) as joint_source_connections
+				
+				// Combine all connections and unwrap
+				WITH bbox_connections + joint_source_connections + joint_target_connections as all_connections
+				UNWIND all_connections as connection
+				RETURN connection.id as id,
+				       connection.source as source,
+				       connection.target as target
+        		"""; 
+        		
+//        		"""
+//        	MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
+//            MATCH (bbox)-[r:CONNECTS_TO]->(target:Bbox)
+//            WHERE COALESCE(r.state, '') <> 'del'
+//            RETURN r.id AS id, 
+//                   bbox.id AS source, 
+//                   target.id AS target
+//            """;
 
         Result edgeResult = session.run(fetchEdgesQuery, parmData);
         while (edgeResult.hasNext()) {
@@ -396,14 +486,16 @@ public class DrawingService {
             		          s.bottom_y = toFloat($bottom_y) / d.height, 
             		          s.text = $text,
             		          s.line_no = $line_no,
-            		          s.state = $state
+            		          s.state = $state,
+            		          s.id = $id
 				ON MATCH SET  s.top_x = toFloat($top_x) / d.width, 
             		          s.top_y = toFloat($top_y) / d.height, 
             		          s.bottom_x = toFloat($bottom_x) / d.width, 
             		          s.bottom_y = toFloat($bottom_y) / d.height, 
             		          s.text = $text,
             		          s.line_no = $line_no,
-            		          s.state = $state
+            		          s.state = $state,
+            		          s.id = $id
                 """, 
                 Map.of(
                     "uuid", runId,
@@ -416,7 +508,13 @@ public class DrawingService {
                     "bottom_y", position.get(1).get(1),
                     "state", Objects.requireNonNullElse(tobeState, "")
                 )
-             );
+            );
+
+    	    // 통계 정보 확인
+    	    SummaryCounters counters = result.consume().counters();
+    	    System.out.println("Nodes created: " + counters.nodesCreated());
+    	    System.out.println("Relationships created: " + counters.relationshipsCreated());
+    	    System.out.println("Properties set: " + counters.propertiesSet());
             result = session.run("""
 				MATCH (d:Drawing)-[:HAS_RUN]->(run:Run {uuid: $uuid})
 				MERGE (run)-[:CONTAINS]->(b:Bbox {id: $id})
@@ -432,8 +530,13 @@ public class DrawingService {
                     "id", nodeName,
                     "label", properties.get("label")
                 )
-             );
-            
+            );
+
+    	    // 통계 정보 확인
+    	    SummaryCounters counters1 = result.consume().counters();
+    	    System.out.println("Nodes created: " + counters1.nodesCreated());
+    	    System.out.println("Relationships created: " + counters1.relationshipsCreated());
+    	    System.out.println("Properties set: " + counters1.propertiesSet());
             if("del".equals(properties.get("state"))) { // edge에도 del state 설정
 	            result = session.run("""
 						MATCH (s:Bbox {id: $id}) - [p:CONNECTS_TO {line_no:$line_no}]->(:Bbox)
