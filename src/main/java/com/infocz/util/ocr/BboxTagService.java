@@ -65,7 +65,11 @@ public class BboxTagService {
         // A 001
         //bboxTagService.tagBbox("e3290c64-4323-42c1-bab7-c061d94343da");
      // A 002
-        bboxTagService.tagBbox("e638d0c3-995e-464a-bf9d-2d4eba468d9e");
+     //   bboxTagService.tagBbox("e638d0c3-995e-464a-bf9d-2d4eba468d9e");
+
+        bboxTagService.tagBbox("aed2fa72-5e14-44db-9668-b3670042db4e");
+        bboxTagService.tagBbox("acad80df-1aec-4b6a-b51b-52738dd28fff");
+        bboxTagService.tagBbox("b79625ab-f621-4c1d-9015-abcb462f0fab");
         
         
         
