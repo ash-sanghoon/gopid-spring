@@ -1,0 +1,19 @@
+
+MATCH (r:Run {uuid:"e3290c64-4323-42c1-bab7-c061d94343da"})
+SET r.run_date = '9999-12-31 01:00', r.model_name = 'ABCD'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"e3290c64-4323-42c1-bab7-c061d94343da"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+B-002 f7f0c1f8-f903-4734-8476-ebeb8ba05054
+B-002 run 89dc960e-6094-4e35-9cf5-051ed092fcc5
+
+MATCH (r:Run {uuid:"89dc960e-6094-4e35-9cf5-051ed092fcc5"})
+SET r.run_date = '2024-12-31 01:00', r.model_name = 'YOLO_8'
+;
+
+MATCH (d:Drawing {uuid:"f7f0c1f8-f903-4734-8476-ebeb8ba05054"}), (r:Run {uuid:"89dc960e-6094-4e35-9cf5-051ed092fcc5"})
+CREATE (d) - [:HAS_RUN] -> (r);
+

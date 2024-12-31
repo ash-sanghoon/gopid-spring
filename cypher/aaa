@@ -1,0 +1,15 @@
+				MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
+				WITH bbox
+				OPTIONAL MATCH (bbox)-[:CONNECTS_TO]-(connected)
+				WHERE connected:Bbox OR connected:Joint
+				WITH bbox, COLLECT(connected) + bbox AS all_nodes
+				UNWIND all_nodes AS n1
+				UNWIND all_nodes AS n2
+				MATCH (n1)-[r:CONNECTS_TO]-(n2)
+				WHERE COALESCE(r.state, '') <> 'del'
+				AND COALESCE(n1.state, '') <> 'del'
+				AND COALESCE(n2.state, '') <> 'del'
+				RETURN DISTINCT n1.id AS source, 
+				              n2.id AS target,
+				              r.id as id,
+				              r.line_no AS line_no

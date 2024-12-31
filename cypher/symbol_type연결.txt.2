@@ -1,3 +1,12 @@
+MATCH (r:Run {uuid:"f56d4327-e487-416e-903c-0f8389b66c3b"})
+MATCH (r)-[:CONTAINS]->(b:Bbox)
+WHERE NOT EXISTS ((b)-[:BELONG_TO]->(:Symbol))
+WITH b as bbox_found, 
+    left(b.id, size(b.id)-37) as symbol_name
+MATCH (s:Symbol {name: symbol_name})
+CREATE (bbox_found)-[:BELONG_TO]->(s)
+
+
 // 남은 Bbox 확인
 MATCH (b:Bbox)
 WHERE NOT EXISTS {

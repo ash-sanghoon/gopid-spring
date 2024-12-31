@@ -17,3 +17,98 @@ MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"b
 CREATE (d) - [:HAS_RUN] -> (r);
 
 
+
+
+f112d417-88d0-4fa1-a3a7-a9bb1f4c0c05
+
+
+
+0612ae8d-6ce7-4a6f-8363-48ec6795611e
+
+
+302bf6d4-4805-4cb6-9c85-3aa2f1bd7c4c
+
+
+MATCH (r:Run {uuid:"302bf6d4-4805-4cb6-9c85-3aa2f1bd7c4c"})
+SET r.run_date = '2024-12-30 15:30', r.model_name = 'YOLO-8'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"302bf6d4-4805-4cb6-9c85-3aa2f1bd7c4c"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+MATCH (r:Run {uuid:"01e8fc00-b511-4d7a-9830-aa97c45a0df6"})
+SET r.run_date = '2024-12-30 16:30', r.model_name = 'YOLO-8'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"01e8fc00-b511-4d7a-9830-aa97c45a0df6"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+MATCH (r:Run {uuid:"9d85788f-cf3f-46f9-a7ef-e746c65f7662"})
+SET r.run_date = '2024-12-31 16:30', r.model_name = 'YOLO-Z'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"9d85788f-cf3f-46f9-a7ef-e746c65f7662"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+MATCH (r:Run {uuid:"f56d4327-e487-416e-903c-0f8389b66c3b"})
+SET r.run_date = '2024-12-31 16:30', r.model_name = 'YOLO-Z'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"f56d4327-e487-416e-903c-0f8389b66c3b"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+
+MATCH (r:Run {uuid:"bf5fc9ec-71ce-47a9-a21e-2e89085b58d0"})
+SET r.run_date = '2024-12-31 16:30', r.model_name = 'YOLO-Z'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"bf5fc9ec-71ce-47a9-a21e-2e89085b58d0"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+
+
+MATCH (r:Run {uuid:"1d260f31-3f15-4db8-b7e1-1226617e947d"})
+SET r.run_date = '2024-12-31 22:30', r.model_name = 'YOLO-Z'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"1d260f31-3f15-4db8-b7e1-1226617e947d"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+
+MATCH (r:Run {uuid:"902fce2e-cd2b-47b6-b089-15510435b33e"})
+SET r.run_date = '9999-12-31 00:00', r.model_name = 'YOLO-Z'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"902fce2e-cd2b-47b6-b089-15510435b33e"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+
+MATCH (r:Run {uuid:"7f83865d-c5b6-45cd-8c0a-f0988a07454b"})
+SET r.run_date = '9999-12-31 01:00', r.model_name = 'ABCD'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"7f83865d-c5b6-45cd-8c0a-f0988a07454b"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+
+MATCH (r:Run {uuid:"e3290c64-4323-42c1-bab7-c061d94343da"})
+SET r.run_date = '9999-12-31 01:00', r.model_name = 'ABCD'
+;
+
+MATCH (d:Drawing {uuid:"0612ae8d-6ce7-4a6f-8363-48ec6795611e"}), (r:Run {uuid:"e3290c64-4323-42c1-bab7-c061d94343da"})
+CREATE (d) - [:HAS_RUN] -> (r);
+
+
+
+89dc960e-6094-4e35-9cf5-051ed092fcc5
+
+
+

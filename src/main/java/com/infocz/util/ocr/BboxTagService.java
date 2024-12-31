@@ -63,12 +63,17 @@ public class BboxTagService {
         BboxTagService bboxTagService = context.getBean(BboxTagService.class);
         
         // A 001
-        //bboxTagService.tagBbox("5b44ad57-495b-4731-bf14-e671bc7c4e39");
-        // A 001 3번 RUN
-        bboxTagService.tagBbox("b431f468-3271-4009-9da8-1a5c9d9d6341");
+        //bboxTagService.tagBbox("e3290c64-4323-42c1-bab7-c061d94343da");
+     // A 002
+        bboxTagService.tagBbox("e638d0c3-995e-464a-bf9d-2d4eba468d9e");
+        
+        
         
         // B 113
-        //bboxTagService.tagBbox("88910a37-fcbb-458c-b56f-cbc1c76e8dac");
+        // bboxTagService.tagBbox("8e4a1105-b066-4246-a086-79d95698844a");
+
+        // C-006 
+        //bboxTagService.tagBbox("b5fe036f-a76a-4bdf-8281-e85b6f627d11");
         
 	}
 	

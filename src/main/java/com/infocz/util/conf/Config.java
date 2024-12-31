@@ -38,7 +38,7 @@ public class Config {
 	public Tesseract getTesseract() {
 		Tesseract tesseract = new Tesseract();
 		tesseract.setDatapath("C:/Program Files/Tesseract-OCR/tessdata"); // Tesseract 설치 경로
-		tesseract.setVariable("tessedit_char_whitelist", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-._/ \"");
+		tesseract.setVariable("tessedit_char_whitelist", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-()._/ \"");
 		tesseract.setLanguage("eng"); // 언어 설정
 		
 		
@@ -54,7 +54,7 @@ public class Config {
 		tesseract.setVariable("tessedit_pageseg_mode", "7");
 
 		// 디버그 레벨 설정
-		tesseract.setVariable("debug_level", "0");
+		//tesseract.setVariable("debug_level", "0");
 		tesseract.setVariable("debug_file", "/dev/null");
 
 		return tesseract;
@@ -71,7 +71,7 @@ public class Config {
 		if("A".equals(drawingPattern)) {
 			return aCharHeight * 1200 / BASE_DPI;
 		}else if("B".equals(drawingPattern)) {
-			return bCharHeight * 300 / BASE_DPI;
+			return bCharHeight * 600 / BASE_DPI;
 		}else if("C".equals(drawingPattern)) {
 			return cCharHeight * 1200 / BASE_DPI;
 		}else if("D".equals(drawingPattern)) {
@@ -84,7 +84,7 @@ public class Config {
 		if("A".equals(drawingPattern)) {
 			return 1200;
 		}else if("B".equals(drawingPattern)) {
-			return 300;
+			return 600;
 		}else if("C".equals(drawingPattern)) {
 			return 1200;
 		}else if("D".equals(drawingPattern)) {
@@ -97,7 +97,7 @@ public class Config {
 		if("A".equals(drawingPattern)) {
 			return 4;
 		}else if("B".equals(drawingPattern)) {
-			return 1;
+			return 2;
 		}else if("C".equals(drawingPattern)) {
 			return 4;
 		}else if("D".equals(drawingPattern)) {
