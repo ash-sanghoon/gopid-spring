@@ -38,7 +38,7 @@ public class DrawingService {
         		Result resultRun = session.run(""" 
 					MATCH (drawing:Drawing {uuid: $uuid})-[:HAS_RUN]->(run:Run)
 					OPTIONAL MATCH (run)-[:CONTAINS]->(bbox:Bbox)
-					OPTIONAL MATCH (bbox)-[rel:CONNECTS_TO]->(otherBbox:Bbox)
+					OPTIONAL MATCH (bbox)-[rel:CONNECTS_TO]->(otherBbox:Bbox|Joint)
 					RETURN 
 					    run.uuid AS uuid,
 					    run.run_date AS run_date, 
@@ -291,7 +291,7 @@ public class DrawingService {
         		"""
 				MATCH (run:Run {uuid:$uuid})-[:CONTAINS]->(bbox:Bbox)
 				WITH bbox
-				MATCH (bbox)-[:CONNECTS_TO]-(connected)
+				OPTIONAL MATCH (bbox)-[:CONNECTS_TO]-(connected)
 				WHERE connected:Bbox OR connected:Joint
 				WITH bbox, COLLECT(connected) + bbox AS all_nodes
 				UNWIND all_nodes AS n1
