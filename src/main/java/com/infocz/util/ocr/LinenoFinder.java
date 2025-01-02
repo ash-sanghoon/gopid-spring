@@ -341,7 +341,7 @@ public class LinenoFinder {
     }
     
     private boolean isTypeCFormat(String text) {
-    	String pattern = "[0-9/]{1,3}\"-[0-9A-Z]{1,2}-\\s-[0-9A-Z]{1,5}-\\s(-[\\s\\S./()]{1,8})?";
+    	String pattern = "[0-9A-Z/]{1,3}\"(-[^\\r\\n]{0,10}[-\"])\\s+-[A-Z0-9]{1,5}-(\\s+-\\([.\\s0-9/]{1,8}\\))?";
         if(text.matches(pattern)) {
         	System.out.println("통과:"+text);
         	return true;
@@ -401,22 +401,27 @@ public class LinenoFinder {
     }
     
     public static void main(String[] arg) {
-    	String pattern = "[0-9/]{1,3}\"-[0-9A-Z]{1,2}-\\s-[0-9A-Z]{1,5}-\\s(-[\\s\\S./()]{1,8})?";
+    	String pattern = "[0-9A-Z/]{1,3}\"(-[^\\r\\n]{0,10}[-\"])\\s+-[A-Z0-9]{1,5}-(\\s+-\\([.\\s0-9/]{1,8}\\))?";
+
+    	// 변경사항:
+    	// (-[A-Z0-9/]{1,6}[-\"]) → (-[^\\r\\n]{0,10}[-\"])
+    	// [^\\r\\n] : 리턴(\r)과 개행(\n)을 제외한 모든 문자
+    	// {0,10} : 0에서 10자 사이
 
     	String[] tests = {
-    	    "1/\"-FO- -AB31F- -(1.8/65)",
+    	    "1/2\"-FO- -A31F-",
+    	    "1/2\"-FO- -A31F- -(1. 8/65)",
+    	    "I\"-VG- -ALIF-",
     	    "1/\"-FO- -AB31F-",
-    	    "1/\"-FO- -AB31F- -(165)" 
+    	    "L/\"-FU-1/P\" -A31F-",
+    	    "1/2\"-AT- -A41F- -(6/65)"
     	};
 
     	for (String test : tests) {
-    	    System.out.println(test + " : " + test.matches(pattern));
-    	    // 매칭 실패시 어느 부분에서 실패하는지 확인
-    	    for (int i = 1; i <= test.length(); i++) {
-    	        String partial = test.substring(0, i);
-    	        System.out.println(i + ": " + partial);
-    	    }
+    	    boolean matches = test.matches(pattern);
+    	    System.out.printf("입력값: %-35s \t 결과: %s%n", 
+    	                    test, 
+    	                    matches ? "통과" : "거부");
     	}
     }
-
 }

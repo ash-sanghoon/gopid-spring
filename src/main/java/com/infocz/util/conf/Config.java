@@ -75,7 +75,7 @@ public class Config {
 		}else if("C".equals(drawingPattern)) {
 			return cCharHeight * 1200 / BASE_DPI;
 		}else if("D".equals(drawingPattern)) {
-			return dCharHeight * 1200 / BASE_DPI;
+			return dCharHeight * 300 / BASE_DPI;
 		}
 		return 13 * 1200 / BASE_DPI;
 	}
@@ -88,7 +88,7 @@ public class Config {
 		}else if("C".equals(drawingPattern)) {
 			return 1200;
 		}else if("D".equals(drawingPattern)) {
-			return 1200;
+			return 300;
 		}
 		return 1200;
 	}
@@ -101,7 +101,7 @@ public class Config {
 		}else if("C".equals(drawingPattern)) {
 			return 4;
 		}else if("D".equals(drawingPattern)) {
-			return 4;
+			return 1;
 		}
 		return 4;
 	}
@@ -135,7 +135,7 @@ public class Config {
                 Integer.parseInt(parts[0]) * 1200 / BASE_DPI,
                 Integer.parseInt(parts[1]) * 1200 / BASE_DPI,
                 Integer.parseInt(parts[2]) * 1200 / BASE_DPI,
-                Integer.parseInt(parts[3]) * 1200 / BASE_DPI
+                Integer.parseInt(parts[3]) * 300 / BASE_DPI
             );
 	}
 }
