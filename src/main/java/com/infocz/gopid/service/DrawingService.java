@@ -300,10 +300,11 @@ public class DrawingService {
 				WHERE COALESCE(r.state, '') <> 'del'
 				AND COALESCE(n1.state, '') <> 'del'
 				AND COALESCE(n2.state, '') <> 'del'
-				RETURN DISTINCT n1.id AS source, 
-				              n2.id AS target,
-				              r.id as id,
-				              r.line_no AS line_no
+				AND n1.id <= n2.id  // 이 조건을 추가하여 한쪽 방향만 선택
+				RETURN DISTINCT n1.id AS source,
+				n2.id AS target,
+				r.id as id,
+				r.line_no AS line_no
 				""";
 //        		"""
 //				// 시작 Bbox 찾기
